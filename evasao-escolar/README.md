@@ -63,7 +63,7 @@ pytest tests/ -v
 - [ ] Implementar `src/data/build_target.py` — construção do alvo `taxa_abandono_t1`.
 - [ ] Implementar `src/features/feature_engineer.py` — features derivadas.
 - [ ] Treinar baseline (Ridge, Random Forest) e XGBoost.
-- [ ] Análise SHAP global e local; análise de resíduos (P3).
+- [ ] Análise SHAP global e local; análise de resíduos, efetuar analises de monte carlo (P3).
 - [ ] Dashboard Streamlit.
 
 Ver `docs/decisoes_projeto.md` para o roadmap completo e justificativas

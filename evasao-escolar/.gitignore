@@ -1,0 +1,30 @@
+# Ambiente virtual
+.venv/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dados gerados (não versionar dados brutos nem interim)
+data/raw/
+data/interim/
+data/processed/
+
+# Modelos treinados
+models/
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+
+# IDEs
+.vscode/
+.idea/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Pytest
+.pytest_cache/

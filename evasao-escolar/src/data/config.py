@@ -22,14 +22,10 @@ INTERIM_DIR = DATA_DIR / "interim"
 PROCESSED_DIR = DATA_DIR / "processed"
 MODELS_DIR = ROOT_DIR / "models"
 
-# Cada ano do Censo deve estar em uma subpasta data/raw/censo_<ano>/
-# Dentro dela, o arquivo principal é tipicamente "microdados_ed_basica_<ano>.csv"
-# (nome pode variar entre anos — ajustar conforme necessário)
-CENSO_DIRS = {
-    2022: RAW_DIR / "censo_2022",
-    2023: RAW_DIR / "censo_2023",
-    2024: RAW_DIR / "censo_2024",
-}
+# Todos os anos do Censo ficam na mesma pasta data/raw/censo/
+# Arquivos nomeados como "microdados_ed_basica_<ano>.csv"
+CENSO_DIR = RAW_DIR / "censo"
+CENSO_DIRS = {ano: CENSO_DIR for ano in [2022, 2023, 2024]}
 
 # Nome do arquivo da tabela ESCOLA dentro de cada pasta de ano.
 # Conforme o INEP, costuma ser "microdados_ed_basica_<ano>.csv".
@@ -96,6 +92,15 @@ COLUNAS_CHAVE_ESCOLA = [
 #   QT_MAT_MED_NM — qtd. de matrículas de EM "normal/magistério"
 # Estratégia adotada: escola oferece EM se QT_MAT_MED > 0
 COL_QTD_MATRICULA_EM = "QT_MAT_MED"
+
+# =============================================================================
+# CAMINHOS DOS INDICADORES COMPLEMENTARES
+# =============================================================================
+
+IRD_DIR  = RAW_DIR / "indicador_regularidade_docente"
+INSE_DIR = RAW_DIR / "inse"
+TDI_DIR  = RAW_DIR / "taxa_distorcao_idade"
+AFD_DIR  = RAW_DIR / "adequacao_formacao_docente"
 
 # =============================================================================
 # LOGGING
