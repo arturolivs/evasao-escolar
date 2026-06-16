@@ -12,8 +12,8 @@ data/raw/
 data/interim/
 data/processed/
 
-# Modelos treinados
-models/
+# Modelos treinados (apenas a pasta na raiz do projeto, não src/models/)
+/models/
 
 # Jupyter / IPython
 .ipynb_checkpoints/
