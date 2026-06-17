@@ -101,6 +101,8 @@ IRD_DIR  = RAW_DIR / "indicador_regularidade_docente"
 INSE_DIR = RAW_DIR / "inse"
 TDI_DIR  = RAW_DIR / "taxa_distorcao_idade"
 AFD_DIR  = RAW_DIR / "adequacao_formacao_docente"
+IED_DIR  = RAW_DIR / "esforco_docente"
+ICG_DIR  = RAW_DIR / "complexidade_gestao_escola"
 
 # =============================================================================
 # LOGGING
