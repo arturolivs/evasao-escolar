@@ -86,9 +86,12 @@ def _carregar_fontes() -> dict[str, pd.DataFrame]:
         "inse":   _load("inse_pe_estadual"),
         "tdi":    _load("tdi_pe_estadual"),
         "afd":    _load("afd_pe_estadual"),
-        "ied":    _load("ied_pe_estadual"),
-        "icg":    _load("icg_pe_estadual"),
     }
+    # IED (Esforço Docente) e ICG (Complexidade de Gestão) NÃO são carregados
+    # aqui: foram testados como features (ver notebooks/11_avaliacao_ied_icg.py)
+    # e não agregaram poder preditivo (Spearman em CV ≈ neutro/levemente pior;
+    # ICG é colinear com a TDI, r≈+0,49). Permanecem apenas como análise
+    # descritiva (notebook 04). Decisão registrada na monografia, Capítulo 6.
     for nome, df in fontes.items():
         if "NU_ANO_CENSO" in df.columns:
             df["NU_ANO_CENSO"] = df["NU_ANO_CENSO"].astype(int)
@@ -224,23 +227,6 @@ def _adicionar_afd(df: pd.DataFrame, afd: pd.DataFrame) -> pd.DataFrame:
     return df.merge(afd_sel, on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="left")
 
 
-def _adicionar_ied(df: pd.DataFrame, ied: pd.DataFrame) -> pd.DataFrame:
-    """Esforço Docente — índice escalar (média ponderada do nível 1–6)."""
-    ied_sel = ied[["CO_ENTIDADE", "NU_ANO_CENSO", "IED_MED_MEDIO"]].rename(
-        columns={"IED_MED_MEDIO": "ied_med_t"}
-    )
-    return df.merge(ied_sel, on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="left")
-
-
-def _adicionar_icg(df: pd.DataFrame, icg: pd.DataFrame) -> pd.DataFrame:
-    """Complexidade de Gestão — nível ordinal 1–6 (tratado como numérico)."""
-    icg_sel = icg[["CO_ENTIDADE", "NU_ANO_CENSO", "ICG_NIVEL"]].rename(
-        columns={"ICG_NIVEL": "icg_nivel_t"}
-    ).copy()
-    icg_sel["icg_nivel_t"] = icg_sel["icg_nivel_t"].astype("float")
-    return df.merge(icg_sel, on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="left")
-
-
 def _adicionar_taxas_lag(df: pd.DataFrame, taxas: pd.DataFrame) -> pd.DataFrame:
     """Adiciona taxas do ano t como features lag e abandono t+1 como target."""
     # Features lag (mesmo ano t)
@@ -293,8 +279,9 @@ def _colunas_features() -> list[str]:
         "inse_media",
         "tdi_med_t", "tdi_s1_t", "tdi_s2_t", "tdi_s3_t",
         "afd_g1_t", "afd_g3_t", "afd_g5_t",
-        "ied_med_t", "icg_nivel_t",
     ]
+    # IED e ICG foram avaliados e descartados (sem ganho preditivo) — ver
+    # comentário em _carregar_fontes e a análise descritiva no notebook 04.
     # Taxas lag (ano t)
     taxas_lag = [
         "abnd_t", "abnd_s1_t", "abnd_s2_t", "abnd_s3_t",
@@ -343,15 +330,12 @@ def construir_dataset(anos_feature: list[int] | None = None) -> pd.DataFrame:
     df = _adicionar_inse(df, fontes["inse"])
     df = _adicionar_tdi(df, fontes["tdi"])
     df = _adicionar_afd(df, fontes["afd"])
-    df = _adicionar_ied(df, fontes["ied"])
-    df = _adicionar_icg(df, fontes["icg"])
 
     # Imputa missings dos indicadores por média de mesorregião×ano
     indicadores_num = [
         "ird_med_t", "inse_media", "inse_nivel_num",
         "tdi_med_t", "tdi_s1_t", "tdi_s2_t", "tdi_s3_t",
         "afd_g1_t", "afd_g3_t", "afd_g5_t",
-        "ied_med_t", "icg_nivel_t",
     ]
     df = _imputar_por_meso(df, cols=indicadores_num,
                            group_cols=["CO_MESORREGIAO", "NU_ANO_CENSO"])

@@ -116,14 +116,23 @@ def carregar_dados() -> dict[str, pd.DataFrame]:
         config.INTERIM_DIR / "afd_pe_estadual.parquet",
         "python -m src.data.build_afd",
     )
+    ied = _exige_parquet(
+        config.INTERIM_DIR / "ied_pe_estadual.parquet",
+        "python -m src.data.build_esforco_docente",
+    )
+    icg = _exige_parquet(
+        config.INTERIM_DIR / "icg_pe_estadual.parquet",
+        "python -m src.data.build_complexidade_gestao",
+    )
 
-    for df in [painel, taxas, ird, tdi, afd]:
+    for df in [painel, taxas, ird, tdi, afd, ied, icg]:
         if "NU_ANO_CENSO" in df.columns:
             df["NU_ANO_CENSO"] = df["NU_ANO_CENSO"].astype(int)
 
-    logger.info("Dados carregados: painel=%d taxas=%d ird=%d inse=%d tdi=%d afd=%d",
-                len(painel), len(taxas), len(ird), len(inse), len(tdi), len(afd))
-    return dict(painel=painel, taxas=taxas, ird=ird, inse=inse, tdi=tdi, afd=afd)
+    logger.info("Dados carregados: painel=%d taxas=%d ird=%d inse=%d tdi=%d afd=%d ied=%d icg=%d",
+                len(painel), len(taxas), len(ird), len(inse), len(tdi), len(afd), len(ied), len(icg))
+    return dict(painel=painel, taxas=taxas, ird=ird, inse=inse, tdi=tdi, afd=afd,
+                ied=ied, icg=icg)
 
 
 def _enriquecer_com_painel(df: pd.DataFrame, painel: pd.DataFrame, on: list[str]) -> pd.DataFrame:
@@ -475,6 +484,175 @@ def analise_afd(afd: pd.DataFrame, painel: pd.DataFrame) -> None:
 
 
 # =============================================================================
+# C7 — IED: INDICADOR DE ESFORÇO DOCENTE
+# =============================================================================
+
+IED_NIVEL_COLS = [f"IED_MED_N{i}" for i in range(1, 7)]
+
+
+def analise_ied(ied: pd.DataFrame, painel: pd.DataFrame) -> None:
+    sep("C7 — IED: INDICADOR DE ESFORÇO DOCENTE (ENSINO MÉDIO)")
+
+    df = _enriquecer_com_painel(ied, painel, on=["CO_ENTIDADE", "NU_ANO_CENSO"])
+
+    print(f"\nTotal de observações: {len(df):,}")
+    print(f"Escolas únicas: {df['CO_ENTIDADE'].nunique():,}")
+    print(f"Anos: {sorted(df['NU_ANO_CENSO'].unique())}")
+
+    print("\nÍndice de esforço docente (IED_MED_MEDIO, escala 1–6) por ano:")
+    for ano in ANOS:
+        sub = df[df["NU_ANO_CENSO"] == ano]["IED_MED_MEDIO"].dropna()
+        print(f"  {ano}: N={len(sub):,}  média={sub.mean():.2f}  mediana={sub.median():.2f}"
+              f"  DP={sub.std():.2f}  [min={sub.min():.2f} ; max={sub.max():.2f}]")
+
+    # Composição média por nível (2024)
+    sub24 = df[df["NU_ANO_CENSO"] == 2024]
+    print("\nComposição média dos níveis de esforço — EM (2024):")
+    for i, col in enumerate(IED_NIVEL_COLS, start=1):
+        if col in df.columns:
+            print(f"  Nível {i}: média={sub24[col].mean():.1f}% das docências")
+
+    # Urbano vs Rural 2024
+    print("\nIED_MED_MEDIO por localização (2024):")
+    for loc, label in LABELS_LOCALIZACAO.items():
+        vals = sub24[sub24["TP_LOCALIZACAO"] == loc]["IED_MED_MEDIO"].dropna()
+        print(f"  {label}: N={len(vals):,}  média={vals.mean():.2f}  DP={vals.std():.2f}")
+    u = sub24[sub24["TP_LOCALIZACAO"] == 1]["IED_MED_MEDIO"].dropna()
+    r = sub24[sub24["TP_LOCALIZACAO"] == 2]["IED_MED_MEDIO"].dropna()
+    if len(u) > 0 and len(r) > 0:
+        stat, p = stats.mannwhitneyu(u, r, alternative="two-sided")
+        print(f"  Mann-Whitney U={stat:.0f}, p={p:.4f}")
+
+    # --- Figura C7 ---
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+
+    # Distribuição do índice por ano
+    ax = axes[0]
+    data_plot = [df[df["NU_ANO_CENSO"] == a]["IED_MED_MEDIO"].dropna() for a in ANOS]
+    bp = ax.boxplot(data_plot, tick_labels=ANOS, patch_artist=True,
+                    medianprops=dict(color="black", lw=2))
+    for patch, ano in zip(bp["boxes"], ANOS):
+        patch.set_facecolor(CORES_ANOS[ano]); patch.set_alpha(0.7)
+    ax.set_xlabel("Ano"); ax.set_ylabel("IED médio (escala 1–6)")
+    ax.set_title("Distribuição do IED por ano")
+
+    # Composição dos 6 níveis (barras empilhadas por ano)
+    ax = axes[1]
+    cores_niveis = ["#1B5E20", "#7CB342", "#FDD835", "#FB8C00", "#E53935", "#B71C1C"]
+    bottoms = np.zeros(len(ANOS))
+    for col, cor, i in zip(IED_NIVEL_COLS, cores_niveis, range(1, 7)):
+        if col not in df.columns:
+            continue
+        vals = [df[df["NU_ANO_CENSO"] == a][col].mean() for a in ANOS]
+        ax.bar(ANOS, vals, bottom=bottoms, color=cor, alpha=0.88, label=f"Nível {i}")
+        bottoms += np.array(vals)
+    ax.set_xticks(ANOS); ax.set_xlabel("Ano"); ax.set_ylabel("% das docências (média)")
+    ax.set_title("Composição dos níveis de esforço")
+    ax.legend(fontsize=7, ncol=2, loc="lower center")
+
+    # Histograma do índice (2024)
+    ax = axes[2]
+    ax.hist(sub24["IED_MED_MEDIO"].dropna(), bins=25, color="#6A1B9A",
+            edgecolor="white", alpha=0.85)
+    med = sub24["IED_MED_MEDIO"].median()
+    ax.axvline(med, color="red", linestyle="--", lw=1.5, label=f"Mediana={med:.2f}")
+    ax.set_xlabel("IED médio (escala 1–6)"); ax.set_ylabel("N escolas")
+    ax.set_title("Distribuição do IED (2024)")
+    ax.legend(fontsize=9)
+
+    fig.suptitle("C7 — Indicador de Esforço Docente (IED) — Ensino Médio",
+                 fontsize=13, fontweight="bold")
+    fig.tight_layout()
+    salvar_figura(fig, "C7_ied.png")
+
+
+# =============================================================================
+# C8 — ICG: INDICADOR DE COMPLEXIDADE DE GESTÃO
+# =============================================================================
+
+def analise_icg(icg: pd.DataFrame, painel: pd.DataFrame, tdi: pd.DataFrame) -> None:
+    sep("C8 — ICG: INDICADOR DE COMPLEXIDADE DE GESTÃO DA ESCOLA")
+
+    # ICG cobre toda a rede estadual; restringe às escolas do painel de EM
+    df = icg.merge(
+        painel[["CO_ENTIDADE", "NU_ANO_CENSO", "TP_LOCALIZACAO", "CO_MESORREGIAO"]].drop_duplicates(),
+        on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="inner",
+    )
+
+    print(f"\nObservações (após restringir ao painel de EM): {len(df):,}")
+    print(f"Escolas únicas: {df['CO_ENTIDADE'].nunique():,}")
+
+    print("\nDistribuição dos níveis de complexidade (ICG_NIVEL) — todos os anos:")
+    dist = df["ICG_NIVEL"].value_counts().sort_index()
+    for nivel, n in dist.items():
+        print(f"  Nível {int(nivel)}: {n:,} ({n/len(df)*100:.1f}%)")
+
+    print("\nICG_NIVEL médio por ano:")
+    for ano in ANOS:
+        sub = df[df["NU_ANO_CENSO"] == ano]["ICG_NIVEL"].dropna()
+        print(f"  {ano}: N={len(sub):,}  média={sub.mean():.2f}  mediana={sub.median():.1f}")
+
+    # Urbano vs Rural 2024
+    sub24 = df[df["NU_ANO_CENSO"] == 2024]
+    print("\nICG_NIVEL por localização (2024):")
+    for loc, label in LABELS_LOCALIZACAO.items():
+        vals = sub24[sub24["TP_LOCALIZACAO"] == loc]["ICG_NIVEL"].dropna()
+        print(f"  {label}: N={len(vals):,}  média={vals.mean():.2f}")
+
+    # Colinearidade com TDI (motivo do descarte como feature)
+    base_tdi = df.merge(tdi[["CO_ENTIDADE", "NU_ANO_CENSO", "TDI_MED"]],
+                        on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="left")
+    par = base_tdi[["ICG_NIVEL", "TDI_MED"]].dropna()
+    if len(par) > 30:
+        r, p = stats.spearmanr(par["ICG_NIVEL"], par["TDI_MED"])
+        print(f"\nCorrelação ICG_NIVEL × TDI_MED: Spearman r={r:+.3f} (p={p:.4f}, N={len(par):,})")
+        print("  → forte sobreposição com a TDI: justifica o descarte como feature.")
+
+    # --- Figura C8 ---
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+
+    # Barras por nível
+    ax = axes[0]
+    cores_niveis = ["#1B5E20", "#7CB342", "#FDD835", "#FB8C00", "#E53935", "#B71C1C"]
+    niveis = sorted(df["ICG_NIVEL"].dropna().unique())
+    contagens = [int((df["ICG_NIVEL"] == n).sum()) for n in niveis]
+    bars = ax.bar([f"N{int(n)}" for n in niveis], contagens,
+                  color=[cores_niveis[int(n) - 1] for n in niveis], edgecolor="white")
+    for bar, val in zip(bars, contagens):
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 5,
+                f"{val}", ha="center", fontsize=8)
+    ax.set_xlabel("Nível de complexidade"); ax.set_ylabel("N observações")
+    ax.set_title("Escolas por nível de ICG")
+
+    # Evolução do nível médio Urbana vs Rural
+    ax = axes[1]
+    for loc, label, cor in [(1, "Urbana", COR_URBANA), (2, "Rural", COR_RURAL)]:
+        vals = [df[(df["NU_ANO_CENSO"] == a) & (df["TP_LOCALIZACAO"] == loc)]["ICG_NIVEL"].mean() for a in ANOS]
+        ax.plot(ANOS, vals, "o-", label=label, color=cor, lw=2)
+    ax.set_xticks(ANOS); ax.set_xlabel("Ano"); ax.set_ylabel("ICG médio (1–6)")
+    ax.set_title("Evolução do ICG — Urbana vs Rural")
+    ax.legend()
+
+    # Dispersão ICG × TDI (colinearidade)
+    ax = axes[2]
+    par_plot = base_tdi[["ICG_NIVEL", "TDI_MED"]].dropna()
+    ax.scatter(par_plot["ICG_NIVEL"] + np.random.uniform(-0.15, 0.15, len(par_plot)),
+               par_plot["TDI_MED"], alpha=0.25, s=12, color="#00838F")
+    if len(par_plot) > 2:
+        m, b = np.polyfit(par_plot["ICG_NIVEL"], par_plot["TDI_MED"], 1)
+        xs = np.linspace(par_plot["ICG_NIVEL"].min(), par_plot["ICG_NIVEL"].max(), 50)
+        ax.plot(xs, m * xs + b, color="red", lw=1.5)
+        r, _ = stats.spearmanr(par_plot["ICG_NIVEL"], par_plot["TDI_MED"])
+        ax.set_title(f"ICG × TDI (colinearidade)\nr Spearman = {r:+.3f}", fontsize=10)
+    ax.set_xlabel("ICG (nível)"); ax.set_ylabel("TDI Ensino Médio (%)")
+
+    fig.suptitle("C8 — Indicador de Complexidade de Gestão (ICG)",
+                 fontsize=13, fontweight="bold")
+    fig.tight_layout()
+    salvar_figura(fig, "C8_icg.png")
+
+
+# =============================================================================
 # C5 — CORRELAÇÕES COM TAXA DE ABANDONO
 # =============================================================================
 
@@ -487,6 +665,8 @@ def analise_correlacoes(dados: dict[str, pd.DataFrame]) -> None:
     inse   = dados["inse"]
     tdi    = dados["tdi"]
     afd    = dados["afd"]
+    ied    = dados["ied"]
+    icg    = dados["icg"]
 
     # Base: taxas com localização
     base = taxas[["CO_ENTIDADE", "NU_ANO_CENSO", "TAXA_ABND_MED"]].copy()
@@ -509,7 +689,13 @@ def analise_correlacoes(dados: dict[str, pd.DataFrame]) -> None:
     # Join INSE (estático — apenas por CO_ENTIDADE)
     base = base.merge(inse[["CO_ENTIDADE", "INSE_MEDIA"]], on="CO_ENTIDADE", how="left")
 
-    feature_cols = ["INSE_MEDIA", "IRD_MED", "TDI_MED"] + afd_cols
+    # Join IED e ICG (indicadores testados, não incorporados ao modelo)
+    base = base.merge(ied[["CO_ENTIDADE", "NU_ANO_CENSO", "IED_MED_MEDIO"]],
+                      on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="left")
+    base = base.merge(icg[["CO_ENTIDADE", "NU_ANO_CENSO", "ICG_NIVEL"]],
+                      on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="left")
+
+    feature_cols = ["INSE_MEDIA", "IRD_MED", "TDI_MED"] + afd_cols + ["IED_MED_MEDIO", "ICG_NIVEL"]
     feature_cols = [c for c in feature_cols if c in base.columns]
 
     print(f"\nBase de correlação: {len(base):,} observações")
@@ -706,6 +892,8 @@ def main() -> None:
     analise_inse(dados["inse"], dados["painel"])
     analise_tdi(dados["tdi"],   dados["painel"])
     analise_afd(dados["afd"],   dados["painel"])
+    analise_ied(dados["ied"],   dados["painel"])
+    analise_icg(dados["icg"],   dados["painel"], dados["tdi"])
     analise_correlacoes(dados)
     analise_risco_composto(dados)
     sumario(dados)
