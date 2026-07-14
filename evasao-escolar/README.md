@@ -61,11 +61,26 @@ Fontes de Dados (INEP)
                        │
                        ▼
 ┌───────────────────────────────────────┐
-│  Dashboard Streamlit  [planejado]     │
-│  Ranking de risco · SHAP visual       │
+│  Dashboard Streamlit  (app/dashboard) │
+│  Ranking de risco · SHAP por escola   │
 │  Filtros por município / mesorregião  │
 └───────────────────────────────────────┘
 ```
+
+### Dashboard (Fase 8)
+
+Painel de apoio ao gestor: prioriza as escolas por risco de abandono em t+1 e
+explica, por escola, quais indicadores mais empurram a predição (SHAP). É um
+apoio à decisão — não recomenda ações prescritivas (o modelo é correlacional).
+
+```bash
+streamlit run app/dashboard.py
+```
+
+Pré-requisito: `models/xgboost_v1.joblib` e `data/processed/features.parquet`
+gerados (ver `src.features.build_features` e `notebooks/08_tuning_xgboost.py`).
+A lógica de priorização vive em `src/recommend/service.py` (testada em
+`tests/test_recommend.py`); `app/dashboard.py` é só apresentação.
 
 ### Lógica temporal
 
@@ -115,8 +130,12 @@ evasao-escolar/
 │   ├── models/                                # [em desenvolvimento]
 │   │   └── __init__.py
 │   │
-│   └── recommend/                             # Regras de recomendação [planejado]
-│       └── __init__.py
+│   └── recommend/                             # Camada de serviço do dashboard
+│       ├── service.py                         # Priorização, SHAP por escola, resíduos
+│       └── labels.py                          # Rótulos legíveis (gestor)
+│
+├── app/                                       # Dashboard Streamlit (Fase 8)
+│   └── dashboard.py                           # Ranking de risco + explicação SHAP
 │
 ├── notebooks/                                 # Análises executáveis (scripts Python)
 │   ├── 01_exploracao_inicial.py               # EDA: carga, filtragem, sanidade
@@ -283,9 +302,9 @@ pytest tests/ -v --cov=src --cov-report=term-missing
 | 4 | Feature engineering | Concluída |
 | 5 | Modelos baseline (Ridge, Random Forest) | Concluída |
 | 6 | Avaliação complementar e análise de resíduos | Concluída |
-| 7 | Tuning do XGBoost | Em andamento |
-| 8 | Explicabilidade com SHAP | Planejada |
-| 9 | Dashboard Streamlit | Planejada |
+| 7 | Tuning do XGBoost | Concluída |
+| 8 | Explicabilidade com SHAP | Concluída |
+| 9 | Dashboard Streamlit (priorização + SHAP por escola) | Concluída |
 | 10 | Documentação final e testes | Em andamento |
 
 ---
