@@ -22,23 +22,24 @@ Saídas:
 from __future__ import annotations
 
 import logging
-import sys
-from pathlib import Path
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
+from comum import (
+    CORES_MODELOS,
+    FIGURAS_DIR,
+    LABELS_MODELOS,
+    REPORTS_DIR,
+    imprimir_tabela_metricas,
+    salvar_figura,
+    salvar_metricas_cv_e_temporal,
+    sep,
+)
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.base import clone
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.metrics import average_precision_score, roc_auc_score
-
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
 
 from src.models.evaluate import (
     calcular_metricas,
@@ -60,47 +61,9 @@ from src.models.train import (
     split_temporal,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
-FIGURAS_DIR = ROOT / "reports" / "figuras"
-FIGURAS_DIR.mkdir(parents=True, exist_ok=True)
-METRICAS_PATH = ROOT / "reports" / "metricas_xgboost.csv"
-
-CORES_MODELOS = {
-    "dummy_media": "#9E9E9E",
-    "ridge": "#1565C0",
-    "random_forest": "#2E7D32",
-    "xgboost": "#C62828",
-}
-LABELS_MODELOS = {
-    "dummy_media": "Dummy (média)",
-    "ridge": "Ridge",
-    "random_forest": "Random Forest",
-    "xgboost": "XGBoost",
-}
-
-
-def sep(titulo: str) -> None:
-    print(f"\n{'=' * 70}")
-    print(f"  {titulo}")
-    print("=" * 70)
-
-
-def salvar_figura(fig: plt.Figure, nome: str) -> None:
-    caminho = FIGURAS_DIR / nome
-    fig.savefig(caminho, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    logger.info("Figura salva: %s", caminho)
-
-
-def imprimir_tabela_metricas(resumos: dict[str, dict[str, str]]) -> None:
-    metricas = ["rmse", "mae", "r2", "spearman", "precision_at_k"]
-    print(f"\n{'Modelo':<22}" + "".join(f"{m:>18}" for m in metricas))
-    print("-" * (22 + 18 * len(metricas)))
-    for nome, resumo in resumos.items():
-        label = LABELS_MODELOS.get(nome, nome)
-        print(f"  {label:<20}" + "".join(f"{resumo[m]:>18}" for m in metricas))
+METRICAS_PATH = REPORTS_DIR / "metricas_xgboost.csv"
 
 
 def extrair_pipeline(modelo):
@@ -141,9 +104,7 @@ def tuning_xgboost(df: pd.DataFrame):
 # X2 — TRANSFORMAÇÃO DO TARGET NO XGBOOST TUNADO
 # =============================================================================
 
-def transformacao_target_xgb(xgb_best, dados) -> str:
-    sep("X2 — TRANSFORMAÇÃO DO TARGET NO XGBOOST (identidade × log1p × sqrt)")
-
+def avaliar_transformacoes_xgb(xgb_best, dados) -> pd.DataFrame:
     X, y, grupos = dados
     resultados = []
     for nome_tr in TRANSFORMACOES_TARGET:
@@ -156,17 +117,10 @@ def transformacao_target_xgb(xgb_best, dados) -> str:
             "spearman": df_folds["spearman"].mean(),
             "precision_at_k": df_folds["precision_at_k"].mean(),
         })
-    res = pd.DataFrame(resultados)
+    return pd.DataFrame(resultados)
 
-    print(f"\n{'Transformação':<15}{'RMSE':>14}{'Spearman':>12}{'P@K':>10}")
-    print("-" * 51)
-    for _, r in res.iterrows():
-        print(f"  {r['transformacao']:<13}{r['rmse']:>9.3f} ±{r['rmse_dp']:.2f}"
-              f"{r['spearman']:>12.3f}{r['precision_at_k']:>10.3f}")
 
-    melhor = res.loc[res["rmse"].idxmin(), "transformacao"]
-    print(f"\nMelhor transformação para o XGBoost: {melhor}")
-
+def figura_transformacoes_xgb(res: pd.DataFrame) -> None:
     fig, ax = plt.subplots(figsize=(7, 4.5))
     xpos = np.arange(len(res))
     ax.bar(xpos, res["rmse"], yerr=res["rmse_dp"], capsize=4,
@@ -179,12 +133,49 @@ def transformacao_target_xgb(xgb_best, dados) -> str:
     fig.tight_layout()
     salvar_figura(fig, "X2_transformacao_target.png")
 
+
+def transformacao_target_xgb(xgb_best, dados) -> str:
+    sep("X2 — TRANSFORMAÇÃO DO TARGET NO XGBOOST (identidade × log1p × sqrt)")
+
+    res = avaliar_transformacoes_xgb(xgb_best, dados)
+
+    print(f"\n{'Transformação':<15}{'RMSE':>14}{'Spearman':>12}{'P@K':>10}")
+    print("-" * 51)
+    for _, r in res.iterrows():
+        print(f"  {r['transformacao']:<13}{r['rmse']:>9.3f} ±{r['rmse_dp']:.2f}"
+              f"{r['spearman']:>12.3f}{r['precision_at_k']:>10.3f}")
+
+    melhor = res.loc[res["rmse"].idxmin(), "transformacao"]
+    print(f"\nMelhor transformação para o XGBoost: {melhor}")
+
+    figura_transformacoes_xgb(res)
     return melhor
 
 
 # =============================================================================
 # X3 — COMPARAÇÃO CV: XGBOOST × BASELINES
 # =============================================================================
+
+def figura_comparacao_cv(modelos: dict, folds_por_modelo: dict) -> None:
+    fig, axes = plt.subplots(1, 3, figsize=(16, 4.5))
+    for ax, metrica, titulo in zip(
+        axes,
+        ["rmse", "spearman", "precision_at_k"],
+        ["RMSE (p.p., menor=melhor)", "Spearman (maior=melhor)", "Precision@K (K=10%)"],
+    ):
+        dados_plot = [folds_por_modelo[m][metrica] for m in modelos]
+        bp = ax.boxplot(dados_plot, tick_labels=[LABELS_MODELOS[m] for m in modelos],
+                        patch_artist=True, medianprops=dict(color="black", lw=2))
+        for patch, nome in zip(bp["boxes"], modelos):
+            patch.set_facecolor(CORES_MODELOS[nome])
+            patch.set_alpha(0.75)
+        ax.set_title(titulo)
+        ax.tick_params(axis="x", rotation=12)
+    fig.suptitle("X3 — XGBoost × baselines em validação cruzada (GroupKFold por município)",
+                 fontsize=13, fontweight="bold")
+    fig.tight_layout()
+    salvar_figura(fig, "X3_comparacao_cv.png")
+
 
 def comparacao_cv(df: pd.DataFrame, xgb_final, dados):
     sep("X3 — COMPARAÇÃO EM VALIDAÇÃO CRUZADA (XGBoost × baselines)")
@@ -214,31 +205,71 @@ def comparacao_cv(df: pd.DataFrame, xgb_final, dados):
     print("\nMétricas em CV (média ± DP entre 5 folds, escala original em p.p.):")
     imprimir_tabela_metricas(resumos)
 
-    fig, axes = plt.subplots(1, 3, figsize=(16, 4.5))
-    for ax, metrica, titulo in zip(
-        axes,
-        ["rmse", "spearman", "precision_at_k"],
-        ["RMSE (p.p., menor=melhor)", "Spearman (maior=melhor)", "Precision@K (K=10%)"],
-    ):
-        dados_plot = [folds_por_modelo[m][metrica] for m in modelos]
-        bp = ax.boxplot(dados_plot, tick_labels=[LABELS_MODELOS[m] for m in modelos],
-                        patch_artist=True, medianprops=dict(color="black", lw=2))
-        for patch, nome in zip(bp["boxes"], modelos):
-            patch.set_facecolor(CORES_MODELOS[nome])
-            patch.set_alpha(0.75)
-        ax.set_title(titulo)
-        ax.tick_params(axis="x", rotation=12)
-    fig.suptitle("X3 — XGBoost × baselines em validação cruzada (GroupKFold por município)",
-                 fontsize=13, fontweight="bold")
-    fig.tight_layout()
-    salvar_figura(fig, "X3_comparacao_cv.png")
-
+    figura_comparacao_cv(modelos, folds_por_modelo)
     return modelos, folds_por_modelo
 
 
 # =============================================================================
 # X4 — VALIDAÇÃO TEMPORAL
 # =============================================================================
+
+def relatorio_metricas_temporais(resultados: dict) -> None:
+    print(f"\n{'Modelo':<22}{'RMSE':>9}{'MAE':>9}{'R²':>9}{'Spearman':>10}{'P@K':>8}")
+    print("-" * 70)
+    for nome, m in resultados.items():
+        print(f"  {LABELS_MODELOS[nome]:<20}{m['rmse']:>9.3f}{m['mae']:>9.3f}"
+              f"{m['r2']:>9.3f}{m['spearman']:>10.3f}{m['precision_at_k']:>8.3f}")
+
+
+def avaliacao_binarizada(y_te: pd.Series, predicoes: dict) -> dict:
+    """Avaliação binarizada pós-hoc (mesma metodologia do notebook 07):
+    escolas críticas = decil superior de abandono em 2024; predições contínuas
+    usadas como scores de risco. Permite comparar com a literatura (AUC)."""
+    y_bin = (y_te >= y_te.quantile(0.90)).astype(int).to_numpy()
+    binarizado = {}
+    print(f"\n{'Modelo':<22}{'ROC-AUC':>10}{'PR-AUC':>10}")
+    print("-" * 42)
+    for nome, y_pred in predicoes.items():
+        roc = roc_auc_score(y_bin, y_pred)
+        pr = average_precision_score(y_bin, y_pred)
+        binarizado[nome] = {"roc_auc": float(roc), "pr_auc": float(pr)}
+        print(f"  {LABELS_MODELOS[nome]:<20}{roc:>10.3f}{pr:>10.3f}")
+    return binarizado
+
+
+def figura_validacao_temporal(resultados: dict, y_te: pd.Series, y_pred: np.ndarray) -> None:
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+
+    ax = axes[0]
+    ax.scatter(y_te, y_pred, alpha=0.3, s=14, color=CORES_MODELOS["xgboost"])
+    lim = max(y_te.max(), float(np.max(y_pred))) * 1.05
+    ax.plot([0, lim], [0, lim], "k--", lw=1.2, label="Predição perfeita")
+    ax.set_xlabel("Taxa de abandono real 2024 (%)")
+    ax.set_ylabel("Taxa de abandono predita (%)")
+    mx = resultados["xgboost"]
+    ax.set_title(f"XGBoost — predito × real\n"
+                 f"RMSE={mx['rmse']:.2f}  Spearman={mx['spearman']:.3f}")
+    ax.legend(fontsize=9)
+
+    ax = axes[1]
+    metricas_plot = ["rmse", "mae"]
+    xpos = np.arange(len(metricas_plot))
+    largura = 0.2
+    for i, nome in enumerate(resultados):
+        vals = [resultados[nome][mt] for mt in metricas_plot]
+        ax.bar(xpos + (i - 1.5) * largura, vals, largura,
+               color=CORES_MODELOS[nome], alpha=0.85, label=LABELS_MODELOS[nome])
+    ax.set_xticks(xpos)
+    ax.set_xticklabels(["RMSE", "MAE"])
+    ax.set_ylabel("Erro (pontos percentuais)")
+    ax.set_title("Erro no conjunto de teste temporal")
+    ax.legend(fontsize=8)
+
+    fig.suptitle("X4 — Validação temporal (2022→2023 treina, 2023→2024 testa)",
+                 fontsize=13, fontweight="bold")
+    fig.tight_layout()
+    salvar_figura(fig, "X4_validacao_temporal.png")
+
 
 def validacao_temporal(df: pd.DataFrame, modelos: dict) -> dict:
     sep("X4 — VALIDAÇÃO TEMPORAL (treina 2022→2023, testa 2023→2024)")
@@ -260,11 +291,7 @@ def validacao_temporal(df: pd.DataFrame, modelos: dict) -> dict:
         predicoes[nome] = y_pred
         modelos_fit[nome] = m
 
-    print(f"\n{'Modelo':<22}{'RMSE':>9}{'MAE':>9}{'R²':>9}{'Spearman':>10}{'P@K':>8}")
-    print("-" * 70)
-    for nome, m in resultados.items():
-        print(f"  {LABELS_MODELOS[nome]:<20}{m['rmse']:>9.3f}{m['mae']:>9.3f}"
-              f"{m['r2']:>9.3f}{m['spearman']:>10.3f}{m['precision_at_k']:>8.3f}")
+    relatorio_metricas_temporais(resultados)
 
     melhor_nome = min(
         (n for n in resultados if n != "dummy_media"),
@@ -272,52 +299,8 @@ def validacao_temporal(df: pd.DataFrame, modelos: dict) -> dict:
     )
     print(f"\nMelhor modelo na validação temporal: {LABELS_MODELOS[melhor_nome]}")
 
-    # Avaliação binarizada pós-hoc (mesma metodologia do notebook 07):
-    # escolas críticas = decil superior de abandono em 2024; predições contínuas
-    # usadas como scores de risco. Permite comparar com a literatura (AUC).
-    y_bin = (y_te >= y_te.quantile(0.90)).astype(int).to_numpy()
-    binarizado = {}
-    print(f"\n{'Modelo':<22}{'ROC-AUC':>10}{'PR-AUC':>10}")
-    print("-" * 42)
-    for nome in modelos:
-        roc = roc_auc_score(y_bin, predicoes[nome])
-        pr = average_precision_score(y_bin, predicoes[nome])
-        binarizado[nome] = {"roc_auc": float(roc), "pr_auc": float(pr)}
-        print(f"  {LABELS_MODELOS[nome]:<20}{roc:>10.3f}{pr:>10.3f}")
-
-    # Figura X4 — predito × real do XGBoost + comparação de erro
-    y_pred = predicoes["xgboost"]
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-
-    ax = axes[0]
-    ax.scatter(y_te, y_pred, alpha=0.3, s=14, color=CORES_MODELOS["xgboost"])
-    lim = max(y_te.max(), float(np.max(y_pred))) * 1.05
-    ax.plot([0, lim], [0, lim], "k--", lw=1.2, label="Predição perfeita")
-    ax.set_xlabel("Taxa de abandono real 2024 (%)")
-    ax.set_ylabel("Taxa de abandono predita (%)")
-    mx = resultados["xgboost"]
-    ax.set_title(f"XGBoost — predito × real\n"
-                 f"RMSE={mx['rmse']:.2f}  Spearman={mx['spearman']:.3f}")
-    ax.legend(fontsize=9)
-
-    ax = axes[1]
-    metricas_plot = ["rmse", "mae"]
-    xpos = np.arange(len(metricas_plot))
-    largura = 0.2
-    for i, nome in enumerate(modelos):
-        vals = [resultados[nome][mt] for mt in metricas_plot]
-        ax.bar(xpos + (i - 1.5) * largura, vals, largura,
-               color=CORES_MODELOS[nome], alpha=0.85, label=LABELS_MODELOS[nome])
-    ax.set_xticks(xpos)
-    ax.set_xticklabels(["RMSE", "MAE"])
-    ax.set_ylabel("Erro (pontos percentuais)")
-    ax.set_title("Erro no conjunto de teste temporal")
-    ax.legend(fontsize=8)
-
-    fig.suptitle("X4 — Validação temporal (2022→2023 treina, 2023→2024 testa)",
-                 fontsize=13, fontweight="bold")
-    fig.tight_layout()
-    salvar_figura(fig, "X4_validacao_temporal.png")
+    binarizado = avaliacao_binarizada(y_te, predicoes)
+    figura_validacao_temporal(resultados, y_te, predicoes["xgboost"])
 
     return {
         "resultados": resultados,
@@ -334,29 +317,18 @@ def validacao_temporal(df: pd.DataFrame, modelos: dict) -> dict:
 # X5 — IMPORTÂNCIA DAS FEATURES E RESÍDUOS
 # =============================================================================
 
-def importancia_e_residuos(temporal: dict, xgb_temporal) -> None:
-    sep("X5 — IMPORTÂNCIA DAS FEATURES (ganho) E RESÍDUOS DO XGBOOST")
-
+def importancias_do_xgboost(xgb_temporal) -> pd.DataFrame:
     pipe = extrair_pipeline(xgb_temporal)
     nomes = pipe.named_steps["preprocess"].get_feature_names_out()
-    nomes = [n.split("__", 1)[-1] for n in nomes]  # remove prefixo num__/cat__
+    nomes = [n.split("__", 1)[-1] for n in nomes]
     importancias = pipe.named_steps["model"].feature_importances_
 
-    imp = (pd.DataFrame({"feature": nomes, "ganho": importancias})
-           .sort_values("ganho", ascending=False)
-           .reset_index(drop=True))
+    return (pd.DataFrame({"feature": nomes, "ganho": importancias})
+            .sort_values("ganho", ascending=False)
+            .reset_index(drop=True))
 
-    print("\nTop 15 features por ganho (importância do XGBoost):")
-    for _, r in imp.head(15).iterrows():
-        print(f"  {r['feature']:<28} {r['ganho']:.4f}")
 
-    # Resíduos no teste temporal
-    teste = temporal["teste"].copy()
-    teste["y_pred"] = temporal["predicoes"]["xgboost"]
-    teste["residuo"] = teste["taxa_abandono_t1"] - teste["y_pred"]
-    print(f"\nResíduo XGBoost (real − predito): média={teste['residuo'].mean():.2f}  "
-          f"DP={teste['residuo'].std():.2f}")
-
+def figura_importancia_e_residuos(imp: pd.DataFrame, teste: pd.DataFrame) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
     ax = axes[0]
@@ -378,6 +350,23 @@ def importancia_e_residuos(temporal: dict, xgb_temporal) -> None:
     fig.tight_layout()
     salvar_figura(fig, "X5_importancia_residuos.png")
 
+
+def importancia_e_residuos(temporal: dict, xgb_temporal) -> None:
+    sep("X5 — IMPORTÂNCIA DAS FEATURES (ganho) E RESÍDUOS DO XGBOOST")
+
+    imp = importancias_do_xgboost(xgb_temporal)
+
+    print("\nTop 15 features por ganho (importância do XGBoost):")
+    for _, r in imp.head(15).iterrows():
+        print(f"  {r['feature']:<28} {r['ganho']:.4f}")
+
+    teste = temporal["teste"].copy()
+    teste["y_pred"] = temporal["predicoes"]["xgboost"]
+    teste["residuo"] = teste["taxa_abandono_t1"] - teste["y_pred"]
+    print(f"\nResíduo XGBoost (real − predito): média={teste['residuo'].mean():.2f}  "
+          f"DP={teste['residuo'].std():.2f}")
+
+    figura_importancia_e_residuos(imp, teste)
     imp.to_csv(METRICAS_PATH.parent / "xgboost_feature_importance.csv", index=False)
 
 
@@ -388,20 +377,7 @@ def importancia_e_residuos(temporal: dict, xgb_temporal) -> None:
 def registrar_e_salvar(df, folds_por_modelo, temporal, melhor_tr, xgb_best) -> None:
     sep("REGISTRO DE MÉTRICAS E SERIALIZAÇÃO")
 
-    linhas = []
-    for nome, df_folds in folds_por_modelo.items():
-        for _, r in df_folds.iterrows():
-            linhas.append({"modelo": nome, "avaliacao": "cv_groupkfold",
-                           "fold": int(r["fold"]), **{
-                               m: r[m] for m in
-                               ["rmse", "mae", "r2", "spearman", "precision_at_k"]}})
-    for nome, m in temporal["resultados"].items():
-        linhas.append({"modelo": nome, "avaliacao": "temporal_2023_2024",
-                       "fold": None, **{
-                           k: m[k] for k in
-                           ["rmse", "mae", "r2", "spearman", "precision_at_k"]}})
-    pd.DataFrame(linhas).to_csv(METRICAS_PATH, index=False)
-    print(f"\nMétricas salvas em: {METRICAS_PATH}")
+    salvar_metricas_cv_e_temporal(folds_por_modelo, temporal["resultados"], METRICAS_PATH)
 
     # Modelo final: XGBoost tunado + melhor transformação, re-treinado em TODOS os dados
     X, y, _ = preparar_xy(df)

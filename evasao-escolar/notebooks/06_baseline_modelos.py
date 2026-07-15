@@ -18,20 +18,22 @@ Saídas:
 from __future__ import annotations
 
 import logging
-import sys
-from pathlib import Path
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
+from comum import (
+    CORES_MODELOS,
+    FIGURAS_DIR,
+    LABELS_MODELOS,
+    REPORTS_DIR,
+    imprimir_tabela_metricas,
+    salvar_figura,
+    salvar_metricas_cv_e_temporal,
+    sep,
+)
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
+from sklearn.base import clone
 
 from src.models.evaluate import (
     calcular_metricas,
@@ -46,65 +48,21 @@ from src.models.train import (
     buscar_hiperparametros,
     carregar_dataset,
     criar_baselines,
-    criar_pipeline,
     preparar_xy,
     salvar_modelo,
     split_temporal,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
-FIGURAS_DIR = ROOT / "reports" / "figuras"
-FIGURAS_DIR.mkdir(parents=True, exist_ok=True)
-METRICAS_PATH = ROOT / "reports" / "metricas_baselines.csv"
-
-CORES_MODELOS = {
-    "dummy_media": "#9E9E9E",
-    "ridge": "#1565C0",
-    "random_forest": "#2E7D32",
-}
-LABELS_MODELOS = {
-    "dummy_media": "Dummy (média)",
-    "ridge": "Ridge",
-    "random_forest": "Random Forest",
-}
-
-
-def sep(titulo: str) -> None:
-    print(f"\n{'=' * 70}")
-    print(f"  {titulo}")
-    print("=" * 70)
-
-
-def salvar_figura(fig: plt.Figure, nome: str) -> None:
-    caminho = FIGURAS_DIR / nome
-    fig.savefig(caminho, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    logger.info("Figura salva: %s", caminho)
-
-
-def imprimir_tabela_metricas(resumos: dict[str, dict[str, str]]) -> None:
-    metricas = ["rmse", "mae", "r2", "spearman", "precision_at_k"]
-    print(f"\n{'Modelo':<22}" + "".join(f"{m:>18}" for m in metricas))
-    print("-" * (22 + 18 * len(metricas)))
-    for nome, resumo in resumos.items():
-        label = LABELS_MODELOS.get(nome, nome)
-        print(f"  {label:<20}" + "".join(f"{resumo[m]:>18}" for m in metricas))
+METRICAS_PATH = REPORTS_DIR / "metricas_baselines.csv"
 
 
 # =============================================================================
 # M1 — COMPARAÇÃO DOS BASELINES EM VALIDAÇÃO CRUZADA
 # =============================================================================
 
-def comparacao_baselines(df: pd.DataFrame) -> tuple[dict, dict]:
-    sep("M1 — BASELINES EM VALIDAÇÃO CRUZADA (GroupKFold por município)")
-
-    X, y, grupos = preparar_xy(df)
-    print(f"\nX: {X.shape[0]:,} obs × {X.shape[1]} features  |  "
-          f"grupos (municípios): {grupos.nunique()}")
-
-    # Seleção de hiperparâmetros com a mesma CV agrupada
+def tunar_baselines(X: pd.DataFrame, y: pd.Series, grupos: pd.Series) -> dict:
     baselines = criar_baselines(X)
     print("\nBusca de hiperparâmetros (GridSearchCV, 5 folds agrupados):")
     gs_ridge = buscar_hiperparametros(baselines["ridge"], GRID_RIDGE, X, y, grupos)
@@ -112,25 +70,14 @@ def comparacao_baselines(df: pd.DataFrame) -> tuple[dict, dict]:
     gs_rf = buscar_hiperparametros(baselines["random_forest"], GRID_RF, X, y, grupos)
     print(f"  Random Forest  → {gs_rf.best_params_}  (RMSE CV={-gs_rf.best_score_:.3f})")
 
-    modelos = {
+    return {
         "dummy_media": baselines["dummy_media"],
         "ridge": gs_ridge.best_estimator_,
         "random_forest": gs_rf.best_estimator_,
     }
 
-    # CV com métricas completas por fold
-    folds_por_modelo: dict[str, pd.DataFrame] = {}
-    resumos: dict[str, dict[str, str]] = {}
-    for nome, modelo in modelos.items():
-        logger.info("Validação cruzada: %s", nome)
-        df_folds = validacao_cruzada_grupos(modelo, X, y, grupos)
-        folds_por_modelo[nome] = df_folds
-        resumos[nome] = resumir_cv(df_folds)
 
-    print("\nMétricas em CV (média ± DP entre 5 folds, escala original em p.p.):")
-    imprimir_tabela_metricas(resumos)
-
-    # Figura M1 — distribuição das métricas por fold
+def figura_baselines_cv(modelos: dict, folds_por_modelo: dict) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
     for ax, metrica, titulo in zip(
         axes,
@@ -150,6 +97,28 @@ def comparacao_baselines(df: pd.DataFrame) -> tuple[dict, dict]:
     fig.tight_layout()
     salvar_figura(fig, "M1_baselines_cv.png")
 
+
+def comparacao_baselines(df: pd.DataFrame) -> tuple[dict, dict]:
+    sep("M1 — BASELINES EM VALIDAÇÃO CRUZADA (GroupKFold por município)")
+
+    X, y, grupos = preparar_xy(df)
+    print(f"\nX: {X.shape[0]:,} obs × {X.shape[1]} features  |  "
+          f"grupos (municípios): {grupos.nunique()}")
+
+    modelos = tunar_baselines(X, y, grupos)
+
+    folds_por_modelo: dict[str, pd.DataFrame] = {}
+    resumos: dict[str, dict[str, str]] = {}
+    for nome, modelo in modelos.items():
+        logger.info("Validação cruzada: %s", nome)
+        df_folds = validacao_cruzada_grupos(modelo, X, y, grupos)
+        folds_por_modelo[nome] = df_folds
+        resumos[nome] = resumir_cv(df_folds)
+
+    print("\nMétricas em CV (média ± DP entre 5 folds, escala original em p.p.):")
+    imprimir_tabela_metricas(resumos)
+
+    figura_baselines_cv(modelos, folds_por_modelo)
     return modelos, folds_por_modelo
 
 
@@ -157,9 +126,7 @@ def comparacao_baselines(df: pd.DataFrame) -> tuple[dict, dict]:
 # M2 — TRANSFORMAÇÃO DO TARGET
 # =============================================================================
 
-def comparacao_transformacoes(df: pd.DataFrame, modelos: dict) -> dict[str, str]:
-    sep("M2 — TRANSFORMAÇÃO DO TARGET (identidade × log1p × sqrt)")
-
+def avaliar_transformacoes(df: pd.DataFrame, modelos: dict) -> pd.DataFrame:
     X, y, grupos = preparar_xy(df)
     resultados = []
     for nome_modelo in ["ridge", "random_forest"]:
@@ -174,8 +141,10 @@ def comparacao_transformacoes(df: pd.DataFrame, modelos: dict) -> dict[str, str]
                 "spearman": df_folds["spearman"].mean(),
                 "precision_at_k": df_folds["precision_at_k"].mean(),
             })
-    res = pd.DataFrame(resultados)
+    return pd.DataFrame(resultados)
 
+
+def relatorio_transformacoes(res: pd.DataFrame) -> dict[str, str]:
     print(f"\n{'Modelo':<16}{'Transformação':<15}{'RMSE':>12}{'Spearman':>12}{'P@K':>10}")
     print("-" * 65)
     for _, r in res.iterrows():
@@ -183,36 +152,45 @@ def comparacao_transformacoes(df: pd.DataFrame, modelos: dict) -> dict[str, str]
               f"{r['rmse']:>9.3f} ±{r['rmse_dp']:.2f}{r['spearman']:>12.3f}"
               f"{r['precision_at_k']:>10.3f}")
 
-    # Melhor transformação por modelo (critério: RMSE)
     melhores = {}
     for nome_modelo in ["ridge", "random_forest"]:
         sub = res[res["modelo"] == nome_modelo]
         melhor = sub.loc[sub["rmse"].idxmin(), "transformacao"]
         melhores[nome_modelo] = melhor
         print(f"\nMelhor transformação para {nome_modelo}: {melhor}")
+    return melhores
 
-    # Figura M2
+
+def figura_transformacoes(res: pd.DataFrame) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
     for ax, metrica, titulo in zip(
         axes, ["rmse", "spearman"],
         ["RMSE por transformação (menor=melhor)", "Spearman por transformação"],
     ):
         largura = 0.35
-        transfs = list(TRANSFORMACOES_TARGET)
-        xpos = np.arange(len(transfs))
+        transformacoes = list(TRANSFORMACOES_TARGET)
+        xpos = np.arange(len(transformacoes))
         for i, nome_modelo in enumerate(["ridge", "random_forest"]):
             sub = res[res["modelo"] == nome_modelo].set_index("transformacao")
-            vals = [sub.loc[t, metrica] for t in transfs]
+            vals = [sub.loc[t, metrica] for t in transformacoes]
             ax.bar(xpos + (i - 0.5) * largura, vals, largura,
                    color=CORES_MODELOS[nome_modelo], alpha=0.85,
                    label=LABELS_MODELOS[nome_modelo])
         ax.set_xticks(xpos)
-        ax.set_xticklabels(transfs)
+        ax.set_xticklabels(transformacoes)
         ax.set_title(titulo)
         ax.legend(fontsize=9)
     fig.suptitle("M2 — Efeito da transformação do target", fontsize=13, fontweight="bold")
     fig.tight_layout()
     salvar_figura(fig, "M2_transformacao_target.png")
+
+
+def comparacao_transformacoes(df: pd.DataFrame, modelos: dict) -> dict[str, str]:
+    sep("M2 — TRANSFORMAÇÃO DO TARGET (identidade × log1p × sqrt)")
+
+    res = avaliar_transformacoes(df, modelos)
+    melhores = relatorio_transformacoes(res)
+    figura_transformacoes(res)
 
     res.to_csv(METRICAS_PATH.parent / "metricas_transformacoes.csv", index=False)
     return melhores
@@ -222,43 +200,16 @@ def comparacao_transformacoes(df: pd.DataFrame, modelos: dict) -> dict[str, str]
 # M3 — VALIDAÇÃO TEMPORAL
 # =============================================================================
 
-def validacao_temporal(df: pd.DataFrame, modelos: dict, melhores_tr: dict) -> dict:
-    sep("M3 — VALIDAÇÃO TEMPORAL (treina 2022→2023, testa 2023→2024)")
-
-    treino, teste = split_temporal(df)
-    X_tr, y_tr, _ = preparar_xy(treino)
-    X_te, y_te, _ = preparar_xy(teste)
-    print(f"\nTreino: {len(X_tr):,} obs (features 2022, abandono 2023)")
-    print(f"Teste:  {len(X_te):,} obs (features 2023, abandono 2024)")
-
-    resultados = {}
-    predicoes = {}
-    for nome in ["dummy_media", "ridge", "random_forest"]:
-        modelo = modelos[nome]
-        if nome in melhores_tr:
-            modelo = aplicar_transformacao_target(modelo, melhores_tr[nome])
-        from sklearn.base import clone
-        modelo = clone(modelo)
-        modelo.fit(X_tr, y_tr)
-        y_pred = modelo.predict(X_te)
-        resultados[nome] = calcular_metricas(y_te, y_pred)
-        predicoes[nome] = y_pred
-
+def relatorio_metricas_temporais(resultados: dict) -> None:
     print(f"\n{'Modelo':<22}{'RMSE':>9}{'MAE':>9}{'R²':>9}{'Spearman':>10}{'P@K':>8}")
     print("-" * 70)
     for nome, m in resultados.items():
         print(f"  {LABELS_MODELOS[nome]:<20}{m['rmse']:>9.3f}{m['mae']:>9.3f}"
               f"{m['r2']:>9.3f}{m['spearman']:>10.3f}{m['precision_at_k']:>8.3f}")
 
-    # Melhor modelo no split temporal (critério: RMSE)
-    melhor_nome = min(
-        (n for n in resultados if n != "dummy_media"),
-        key=lambda n: resultados[n]["rmse"],
-    )
-    print(f"\nMelhor baseline na validação temporal: {LABELS_MODELOS[melhor_nome]}")
 
-    # Figura M3 — predito × real do melhor modelo
-    y_pred = predicoes[melhor_nome]
+def figura_validacao_temporal(resultados: dict, y_te: pd.Series,
+                              y_pred: np.ndarray, melhor_nome: str) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
     ax = axes[0]
@@ -291,6 +242,38 @@ def validacao_temporal(df: pd.DataFrame, modelos: dict, melhores_tr: dict) -> di
     fig.tight_layout()
     salvar_figura(fig, "M3_validacao_temporal.png")
 
+
+def validacao_temporal(df: pd.DataFrame, modelos: dict, melhores_tr: dict) -> dict:
+    sep("M3 — VALIDAÇÃO TEMPORAL (treina 2022→2023, testa 2023→2024)")
+
+    treino, teste = split_temporal(df)
+    X_tr, y_tr, _ = preparar_xy(treino)
+    X_te, y_te, _ = preparar_xy(teste)
+    print(f"\nTreino: {len(X_tr):,} obs (features 2022, abandono 2023)")
+    print(f"Teste:  {len(X_te):,} obs (features 2023, abandono 2024)")
+
+    resultados = {}
+    predicoes = {}
+    for nome in ["dummy_media", "ridge", "random_forest"]:
+        modelo = modelos[nome]
+        if nome in melhores_tr:
+            modelo = aplicar_transformacao_target(modelo, melhores_tr[nome])
+        modelo = clone(modelo)
+        modelo.fit(X_tr, y_tr)
+        y_pred = modelo.predict(X_te)
+        resultados[nome] = calcular_metricas(y_te, y_pred)
+        predicoes[nome] = y_pred
+
+    relatorio_metricas_temporais(resultados)
+
+    melhor_nome = min(
+        (n for n in resultados if n != "dummy_media"),
+        key=lambda n: resultados[n]["rmse"],
+    )
+    print(f"\nMelhor baseline na validação temporal: {LABELS_MODELOS[melhor_nome]}")
+
+    figura_validacao_temporal(resultados, y_te, predicoes[melhor_nome], melhor_nome)
+
     return {
         "resultados": resultados,
         "predicoes": predicoes,
@@ -304,31 +287,19 @@ def validacao_temporal(df: pd.DataFrame, modelos: dict, melhores_tr: dict) -> di
 # M4 — ANÁLISE PRELIMINAR DE RESÍDUOS (preview da P3)
 # =============================================================================
 
-def analise_residuos(temporal: dict) -> None:
-    sep("M4 — RESÍDUOS DO MELHOR BASELINE (preview da análise P3)")
-
-    melhor = temporal["melhor_nome"]
-    teste = temporal["teste"].copy()
-    teste["y_pred"] = temporal["predicoes"][melhor]
-    teste["residuo"] = teste["taxa_abandono_t1"] - teste["y_pred"]
-
-    print(f"\nModelo: {LABELS_MODELOS[melhor]}")
-    print(f"Resíduo (real − predito): média={teste['residuo'].mean():.2f}  "
-          f"DP={teste['residuo'].std():.2f}")
-
+def relatorio_residuos_extremos(teste: pd.DataFrame) -> None:
     print("\nTop 10 — abandono ACIMA do esperado pelo perfil (resíduo +):")
-    top_pos = teste.nlargest(10, "residuo")
-    for _, r in top_pos.iterrows():
+    for _, r in teste.nlargest(10, "residuo").iterrows():
         print(f"  {r['NO_ENTIDADE'][:45]:<47} ({r['NO_MUNICIPIO']}): "
               f"real={r['taxa_abandono_t1']:.1f}%  pred={r['y_pred']:.1f}%")
 
     print("\nTop 10 — abandono ABAIXO do esperado (escolas resilientes, resíduo −):")
-    top_neg = teste.nsmallest(10, "residuo")
-    for _, r in top_neg.iterrows():
+    for _, r in teste.nsmallest(10, "residuo").iterrows():
         print(f"  {r['NO_ENTIDADE'][:45]:<47} ({r['NO_MUNICIPIO']}): "
               f"real={r['taxa_abandono_t1']:.1f}%  pred={r['y_pred']:.1f}%")
 
-    # Figura M4
+
+def figura_residuos(teste: pd.DataFrame, melhor: str) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
 
     ax = axes[0]
@@ -351,6 +322,22 @@ def analise_residuos(temporal: dict) -> None:
     salvar_figura(fig, "M4_residuos.png")
 
 
+def analise_residuos(temporal: dict) -> None:
+    sep("M4 — RESÍDUOS DO MELHOR BASELINE (preview da análise P3)")
+
+    melhor = temporal["melhor_nome"]
+    teste = temporal["teste"].copy()
+    teste["y_pred"] = temporal["predicoes"][melhor]
+    teste["residuo"] = teste["taxa_abandono_t1"] - teste["y_pred"]
+
+    print(f"\nModelo: {LABELS_MODELOS[melhor]}")
+    print(f"Resíduo (real − predito): média={teste['residuo'].mean():.2f}  "
+          f"DP={teste['residuo'].std():.2f}")
+
+    relatorio_residuos_extremos(teste)
+    figura_residuos(teste, melhor)
+
+
 # =============================================================================
 # REGISTRO DE MÉTRICAS E SERIALIZAÇÃO
 # =============================================================================
@@ -364,27 +351,11 @@ def registrar_e_salvar(
 ) -> None:
     sep("REGISTRO DE MÉTRICAS E SERIALIZAÇÃO")
 
-    # CSV consolidado: CV (uma linha por modelo×fold) + temporal
-    linhas = []
-    for nome, df_folds in folds_por_modelo.items():
-        for _, r in df_folds.iterrows():
-            linhas.append({"modelo": nome, "avaliacao": "cv_groupkfold",
-                           "fold": int(r["fold"]), **{
-                               m: r[m] for m in
-                               ["rmse", "mae", "r2", "spearman", "precision_at_k"]}})
-    for nome, m in temporal["resultados"].items():
-        linhas.append({"modelo": nome, "avaliacao": "temporal_2023_2024",
-                       "fold": None, **{
-                           k: m[k] for k in
-                           ["rmse", "mae", "r2", "spearman", "precision_at_k"]}})
-    pd.DataFrame(linhas).to_csv(METRICAS_PATH, index=False)
-    print(f"\nMétricas salvas em: {METRICAS_PATH}")
+    salvar_metricas_cv_e_temporal(folds_por_modelo, temporal["resultados"], METRICAS_PATH)
 
-    # Serializa o melhor baseline re-treinado em TODOS os dados
     melhor = temporal["melhor_nome"]
     X, y, _ = preparar_xy(df)
     modelo_final = aplicar_transformacao_target(modelos[melhor], melhores_tr[melhor])
-    from sklearn.base import clone
     modelo_final = clone(modelo_final)
     modelo_final.fit(X, y)
     out = salvar_modelo(modelo_final, f"baseline_{melhor}_v1")

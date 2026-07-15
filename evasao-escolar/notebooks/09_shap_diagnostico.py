@@ -11,6 +11,7 @@ Responde às perguntas:
       (SHAP local — waterfall de uma escola de alto risco e uma resiliente)
   S4. (P3) Quais escolas abandonam significativamente ACIMA ou ABAIXO do
       que o seu perfil institucional prevê? (análise de resíduos)
+  S5. O modelo tem viés sistemático por grupo de localização? (equidade)
 
 Escala: os valores SHAP estão em unidades de sqrt(taxa de abandono) — o
 modelo final usa transformação sqrt no target. O ranking e o sinal das
@@ -25,21 +26,19 @@ Saídas:
 
 from __future__ import annotations
 
-import logging
-import sys
-from pathlib import Path
+from comum import (
+    COR_ABANDONO,
+    COR_RURAL,
+    COR_URBANA,
+    FIGURAS_DIR,
+    REPORTS_DIR,
+    salvar_figura,
+    sep,
+)
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import shap
-
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
 
 from src.models.explain import (
     analise_residuos,
@@ -52,28 +51,8 @@ from src.models.explain import (
 )
 from src.models.train import carregar_dataset, carregar_modelo, colunas_features
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-logger = logging.getLogger(__name__)
-
-FIGURAS_DIR = ROOT / "reports" / "figuras"
-FIGURAS_DIR.mkdir(parents=True, exist_ok=True)
-REPORTS_DIR = ROOT / "reports"
-
-COR = "#C62828"        # vermelho XGBoost (consistente com notebook 08)
-COR_NEG = "#1565C0"    # azul para contribuições negativas
-
-
-def sep(titulo: str) -> None:
-    print(f"\n{'=' * 70}")
-    print(f"  {titulo}")
-    print("=" * 70)
-
-
-def salvar_figura(fig: plt.Figure, nome: str) -> None:
-    caminho = FIGURAS_DIR / nome
-    fig.savefig(caminho, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    logger.info("Figura salva: %s", caminho)
+COR_CONTRIBUICAO_POSITIVA = COR_ABANDONO
+COR_CONTRIBUICAO_NEGATIVA = COR_URBANA
 
 
 # =============================================================================
@@ -91,8 +70,7 @@ def shap_global(shap_values) -> None:
     imp.to_csv(REPORTS_DIR / "shap_importancia.csv", index=False)
     print(f"\nTabela salva em: {REPORTS_DIR / 'shap_importancia.csv'}")
 
-    # Beeswarm — dispersão das contribuições por feature
-    fig = plt.figure(figsize=(9, 7))
+    plt.figure(figsize=(9, 7))
     shap.plots.beeswarm(shap_values, max_display=15, show=False)
     fig = plt.gcf()
     fig.suptitle("S1 — SHAP global (beeswarm): contribuição por escola e feature",
@@ -100,8 +78,7 @@ def shap_global(shap_values) -> None:
     fig.tight_layout()
     salvar_figura(fig, "S1_shap_beeswarm.png")
 
-    # Barras — |SHAP| médio
-    fig = plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(8, 6))
     shap.plots.bar(shap_values, max_display=15, show=False)
     fig = plt.gcf()
     fig.suptitle("S1 — SHAP global (barras): importância média |SHAP|",
@@ -125,7 +102,8 @@ def shap_direcao(shap_values) -> None:
         print(f"  {r['feature']:<26}{r['shap_mean_abs']:>10.4f}{corr:>9}  {r['direcao']}")
 
     top = dirs.iloc[::-1]
-    cores = [COR if c > 0 else COR_NEG for c in top["corr_valor_shap"].fillna(0)]
+    cores = [COR_CONTRIBUICAO_POSITIVA if c > 0 else COR_CONTRIBUICAO_NEGATIVA
+             for c in top["corr_valor_shap"].fillna(0)]
     fig, ax = plt.subplots(figsize=(9, 6))
     ax.barh(top["feature"], top["shap_mean_abs"], color=cores, alpha=0.85)
     ax.set_xlabel("|SHAP| médio (unidades de sqrt(%))")
@@ -144,19 +122,18 @@ def shap_local(shap_values, df, modelo) -> None:
     sep("S3 — SHAP LOCAL (por que esta escola recebeu sua pontuação?)")
 
     y_pred = np.asarray(modelo.predict(df[colunas_features(df)]), dtype=float)
-    idx_alto = int(np.argmax(y_pred))
-    idx_baixo = int(np.argmin(y_pred))
+    casos = [
+        ("ALTO RISCO", int(np.argmax(y_pred)), "S3_waterfall_alto_risco.png"),
+        ("BAIXO RISCO", int(np.argmin(y_pred)), "S3_waterfall_baixo_risco.png"),
+    ]
 
-    for rotulo, idx, arquivo in [
-        ("ALTO RISCO", idx_alto, "S3_waterfall_alto_risco.png"),
-        ("BAIXO RISCO", idx_baixo, "S3_waterfall_baixo_risco.png"),
-    ]:
+    for rotulo, idx, arquivo in casos:
         escola = df.iloc[idx]
         print(f"\n[{rotulo}] {escola.get('NO_ENTIDADE', '?')} "
               f"({escola.get('NO_MUNICIPIO', '?')}, {int(escola['NU_ANO_CENSO'])}) "
               f"— previsto={y_pred[idx]:.1f}%  real={escola['taxa_abandono_t1']:.1f}%")
 
-        fig = plt.figure(figsize=(9, 6))
+        plt.figure(figsize=(9, 6))
         shap.plots.waterfall(shap_values[idx], max_display=12, show=False)
         fig = plt.gcf()
         fig.suptitle(f"S3 — SHAP local ({rotulo.lower()}): "
@@ -170,14 +147,7 @@ def shap_local(shap_values, df, modelo) -> None:
 # S4 — DIAGNÓSTICO POR RESÍDUOS (P3)
 # =============================================================================
 
-def diagnostico_residuos(modelo, df) -> None:
-    sep("S4 — DIAGNÓSTICO POR RESÍDUOS (escolas fora do esperado — P3)")
-
-    res = analise_residuos(modelo, df, top_n=20)
-
-    print(f"\nResíduo (real − previsto): média={res.df['residuo'].mean():.2f}  "
-          f"DP={res.df['residuo'].std():.2f} p.p.")
-
+def relatorio_residuos_extremos(res) -> None:
     print("\n10 escolas que abandonam MAIS do que o perfil prevê (alerta):")
     for _, r in res.acima.head(10).iterrows():
         print(f"  {r.get('NO_ENTIDADE', '?'):<34} {int(r['NU_ANO_CENSO'])}  "
@@ -190,13 +160,13 @@ def diagnostico_residuos(modelo, df) -> None:
               f"real={r['y_real']:5.1f}%  prev={r['y_pred']:5.1f}%  "
               f"resíduo={r['residuo']:+5.1f} (z={r['residuo_z']:+.1f})")
 
-    res.df.to_csv(REPORTS_DIR / "residuos_diagnostico.csv", index=False)
-    print(f"\nTabela completa salva em: {REPORTS_DIR / 'residuos_diagnostico.csv'}")
 
+def figura_residuos(res) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
     ax = axes[0]
-    ax.scatter(res.df["y_pred"], res.df["y_real"], alpha=0.3, s=14, color=COR)
+    ax.scatter(res.df["y_pred"], res.df["y_real"], alpha=0.3, s=14,
+               color=COR_CONTRIBUICAO_POSITIVA)
     lim = max(res.df["y_real"].max(), res.df["y_pred"].max()) * 1.05
     ax.plot([0, lim], [0, lim], "k--", lw=1.2, label="previsto = real")
     ax.set_xlabel("Abandono previsto pelo perfil (%)")
@@ -205,7 +175,7 @@ def diagnostico_residuos(modelo, df) -> None:
     ax.legend(fontsize=9)
 
     ax = axes[1]
-    ax.hist(res.df["residuo"], bins=40, color=COR, alpha=0.8)
+    ax.hist(res.df["residuo"], bins=40, color=COR_CONTRIBUICAO_POSITIVA, alpha=0.8)
     ax.axvline(0, color="black", lw=1.2)
     ax.set_xlabel("Resíduo (real − previsto, p.p.)")
     ax.set_ylabel("Nº de escolas-ano")
@@ -217,9 +187,58 @@ def diagnostico_residuos(modelo, df) -> None:
     salvar_figura(fig, "S4_residuos_diagnostico.png")
 
 
+def diagnostico_residuos(modelo, df) -> None:
+    sep("S4 — DIAGNÓSTICO POR RESÍDUOS (escolas fora do esperado — P3)")
+
+    res = analise_residuos(modelo, df, top_n=20)
+
+    print(f"\nResíduo (real − previsto): média={res.df['residuo'].mean():.2f}  "
+          f"DP={res.df['residuo'].std():.2f} p.p.")
+
+    relatorio_residuos_extremos(res)
+
+    res.df.to_csv(REPORTS_DIR / "residuos_diagnostico.csv", index=False)
+    print(f"\nTabela completa salva em: {REPORTS_DIR / 'residuos_diagnostico.csv'}")
+
+    figura_residuos(res)
+
+
 # =============================================================================
 # S5 — EQUIDADE: RESÍDUOS POR GRUPO DE LOCALIZAÇÃO (validação temporal)
 # =============================================================================
+
+def figura_equidade(res) -> None:
+    grupos = ["urbana", "rural", "diferenciada"]
+    cores_grupo = {"urbana": COR_URBANA, "rural": COR_RURAL, "diferenciada": COR_ABANDONO}
+    dados = [res.loc[res["grupo"] == g, "residuo"] for g in grupos]
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+
+    ax = axes[0]
+    bp = ax.boxplot(dados, tick_labels=grupos, patch_artist=True,
+                    medianprops=dict(color="black", lw=2))
+    for patch, g in zip(bp["boxes"], grupos):
+        patch.set_facecolor(cores_grupo[g])
+        patch.set_alpha(0.6)
+    ax.axhline(0, color="black", lw=1, ls="--")
+    ax.set_ylabel("Resíduo (real − previsto, p.p.)")
+    ax.set_title("Distribuição do resíduo por grupo")
+
+    ax = axes[1]
+    medias = [res.loc[res["grupo"] == g, "residuo"].mean() for g in grupos]
+    ax.bar(grupos, medias, color=[cores_grupo[g] for g in grupos], alpha=0.8)
+    ax.axhline(0, color="black", lw=1)
+    for i, m in enumerate(medias):
+        ax.text(i, m + (0.1 if m >= 0 else -0.3), f"{m:+.2f}",
+                ha="center", fontweight="bold")
+    ax.set_ylabel("Resíduo médio (p.p.)")
+    ax.set_title("Viés médio por grupo (negativo = superpredição)")
+
+    fig.suptitle("S5 — Equidade: resíduo do XGBoost por localização (teste temporal 2023→2024)",
+                 fontsize=13, fontweight="bold")
+    fig.tight_layout()
+    salvar_figura(fig, "S5_equidade_grupos.png")
+
 
 def equidade_grupos(modelo, df) -> None:
     sep("S5 — EQUIDADE: RESÍDUO POR GRUPO DE LOCALIZAÇÃO (XGBoost, teste temporal)")
@@ -235,37 +254,7 @@ def equidade_grupos(modelo, df) -> None:
           "o abandono (prevê mais do que ocorre).")
 
     res.to_csv(REPORTS_DIR / "residuos_grupo_temporal.csv", index=False)
-
-    grupos = ["urbana", "rural", "diferenciada"]
-    cores_g = {"urbana": "#1565C0", "rural": "#2E7D32", "diferenciada": "#C62828"}
-    dados = [res.loc[res["grupo"] == g, "residuo"] for g in grupos]
-
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-
-    ax = axes[0]
-    bp = ax.boxplot(dados, tick_labels=grupos, patch_artist=True,
-                    medianprops=dict(color="black", lw=2))
-    for patch, g in zip(bp["boxes"], grupos):
-        patch.set_facecolor(cores_g[g])
-        patch.set_alpha(0.6)
-    ax.axhline(0, color="black", lw=1, ls="--")
-    ax.set_ylabel("Resíduo (real − previsto, p.p.)")
-    ax.set_title("Distribuição do resíduo por grupo")
-
-    ax = axes[1]
-    medias = [res.loc[res["grupo"] == g, "residuo"].mean() for g in grupos]
-    ax.bar(grupos, medias, color=[cores_g[g] for g in grupos], alpha=0.8)
-    ax.axhline(0, color="black", lw=1)
-    for i, m in enumerate(medias):
-        ax.text(i, m + (0.1 if m >= 0 else -0.3), f"{m:+.2f}",
-                ha="center", fontweight="bold")
-    ax.set_ylabel("Resíduo médio (p.p.)")
-    ax.set_title("Viés médio por grupo (negativo = superpredição)")
-
-    fig.suptitle("S5 — Equidade: resíduo do XGBoost por localização (teste temporal 2023→2024)",
-                 fontsize=13, fontweight="bold")
-    fig.tight_layout()
-    salvar_figura(fig, "S5_equidade_grupos.png")
+    figura_equidade(res)
 
 
 # =============================================================================
@@ -311,9 +300,8 @@ def main() -> None:
     modelo = carregar_modelo("xgboost_v1")
 
     print(f"\nDataset: {len(df):,} obs  |  modelo: xgboost_v1 (TransformedTargetRegressor)")
-    # checagem leve: a matriz pós-preprocess tem o nº de colunas esperado
-    Xt = preparar_matriz_shap(modelo, df[colunas_features(df)])
-    print(f"Matriz SHAP: {Xt.shape[0]:,} obs × {Xt.shape[1]} features transformadas")
+    matriz = preparar_matriz_shap(modelo, df[colunas_features(df)])
+    print(f"Matriz SHAP: {matriz.shape[0]:,} obs × {matriz.shape[1]} features transformadas")
 
     shap_values = calcular_shap_values(modelo, df[colunas_features(df)])
 

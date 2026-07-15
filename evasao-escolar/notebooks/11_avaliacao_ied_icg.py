@@ -21,71 +21,54 @@ Saídas:
 
 from __future__ import annotations
 
-import logging
-import sys
-from pathlib import Path
+from comum import FIGURAS_DIR, REPORTS_DIR, carregar_parquet, salvar_figura, sep
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 from sklearn.base import clone
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-
-from src.data import config  # noqa: E402
-from src.models.evaluate import validacao_cruzada_grupos  # noqa: E402
-from src.models.train import (  # noqa: E402
+from src.data import config
+from src.models.evaluate import validacao_cruzada_grupos
+from src.models.train import (
     aplicar_transformacao_target,
     carregar_dataset,
     criar_xgboost,
     preparar_xy,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-logger = logging.getLogger(__name__)
+CSV_PATH = REPORTS_DIR / "ablacao_ied_icg.csv"
 
-FIGURAS_DIR = ROOT / "reports" / "figuras"
-FIGURAS_DIR.mkdir(parents=True, exist_ok=True)
-CSV_PATH = ROOT / "reports" / "ablacao_ied_icg.csv"
+FEATURES_NOVAS = ["ied_med_t", "icg_nivel_t"]
 
-NOVAS = ["ied_med_t", "icg_nivel_t"]
 # Hiperparâmetros vencedores do tuning (Fase 6) — fixados para isolar o efeito
 # marginal das duas features (mesma capacidade do modelo nos dois cenários).
-HP = dict(n_estimators=300, max_depth=2, learning_rate=0.02,
-          min_child_weight=5, reg_lambda=5.0)
-TRANSFORM = "sqrt"  # transformação vencedora do modelo principal
-
-
-def sep(t: str) -> None:
-    print(f"\n{'=' * 70}\n  {t}\n{'=' * 70}")
+HIPERPARAMETROS = dict(n_estimators=300, max_depth=2, learning_rate=0.02,
+                       min_child_weight=5, reg_lambda=5.0)
+TRANSFORMACAO = "sqrt"
 
 
 def montar_dataset_com_novas() -> pd.DataFrame:
     """Reconstrói o dataset acrescentando IED+ICG (que NÃO entram na versão
     de produção das features) apenas para a avaliação de ablação."""
     df = carregar_dataset()
-    ied = pd.read_parquet(config.INTERIM_DIR / "ied_pe_estadual.parquet")
-    icg = pd.read_parquet(config.INTERIM_DIR / "icg_pe_estadual.parquet")
-    for d in (ied, icg):
-        d["NU_ANO_CENSO"] = d["NU_ANO_CENSO"].astype(int)
+    ied = carregar_parquet(config.INTERIM_DIR / "ied_pe_estadual.parquet",
+                           "python -m src.data.build_esforco_docente")
+    icg = carregar_parquet(config.INTERIM_DIR / "icg_pe_estadual.parquet",
+                           "python -m src.data.build_complexidade_gestao")
 
     df = df.merge(
-        ied[["CO_ENTIDADE", "NU_ANO_CENSO", "IED_MED_MEDIO"]].rename(columns={"IED_MED_MEDIO": "ied_med_t"}),
+        ied[["CO_ENTIDADE", "NU_ANO_CENSO", "IED_MED_MEDIO"]]
+        .rename(columns={"IED_MED_MEDIO": "ied_med_t"}),
         on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="left",
     )
-    icg = icg[["CO_ENTIDADE", "NU_ANO_CENSO", "ICG_NIVEL"]].rename(columns={"ICG_NIVEL": "icg_nivel_t"})
+    icg = icg[["CO_ENTIDADE", "NU_ANO_CENSO", "ICG_NIVEL"]].rename(
+        columns={"ICG_NIVEL": "icg_nivel_t"})
     icg["icg_nivel_t"] = icg["icg_nivel_t"].astype("float")
     df = df.merge(icg, on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="left")
 
     # Imputação coerente com o pipeline (média por feature) para 0% missing
-    for col in NOVAS:
+    for col in FEATURES_NOVAS:
         df[col] = df[col].fillna(df[col].mean())
     return df
 
@@ -94,29 +77,35 @@ def correlacoes(df: pd.DataFrame) -> None:
     sep("D1/D2 — CORRELAÇÃO COM O TARGET E COM FEATURES EXISTENTES")
 
     print("\nSpearman de IED/ICG com o target (taxa_abandono_t1):")
-    for col in NOVAS:
+    for col in FEATURES_NOVAS:
         r, p = spearmanr(df[col], df["taxa_abandono_t1"])
         print(f"  {col:<14} r={r:+.3f}  p={p:.4f}")
 
     print("\nMaior |correlação| de cada novo indicador com as features existentes:")
-    num = df.select_dtypes("number")
-    existentes = [c for c in num.columns if c not in NOVAS + ["taxa_abandono_t1", "CO_ENTIDADE", "NU_ANO_CENSO", "CO_MUNICIPIO"]]
-    for col in NOVAS:
-        cors = {c: abs(spearmanr(df[col], df[c]).statistic) for c in existentes}
-        top = sorted(cors.items(), key=lambda kv: kv[1], reverse=True)[:3]
-        txt = ", ".join(f"{c}={v:.2f}" for c, v in top)
+    numericas = df.select_dtypes("number")
+    ids_e_target = FEATURES_NOVAS + ["taxa_abandono_t1", "CO_ENTIDADE",
+                                     "NU_ANO_CENSO", "CO_MUNICIPIO"]
+    existentes = [c for c in numericas.columns if c not in ids_e_target]
+    for col in FEATURES_NOVAS:
+        correlacoes_abs = {c: abs(spearmanr(df[col], df[c]).statistic) for c in existentes}
+        top3 = sorted(correlacoes_abs.items(), key=lambda kv: kv[1], reverse=True)[:3]
+        txt = ", ".join(f"{c}={v:.2f}" for c, v in top3)
         print(f"  {col:<14} → {txt}")
 
 
 def ablacao(df_com: pd.DataFrame) -> pd.DataFrame:
     sep("D3 — ABLAÇÃO XGBOOST (mesmos folds, mesmos HP): COM vs SEM IED+ICG")
 
+    cenarios = [
+        ("com_ied_icg", df_com),
+        ("sem_ied_icg", df_com.drop(columns=FEATURES_NOVAS)),
+    ]
     linhas = []
-    for rotulo, dfx in [("com_ied_icg", df_com), ("sem_ied_icg", df_com.drop(columns=NOVAS))]:
+    for rotulo, dfx in cenarios:
         X, y, grupos = preparar_xy(dfx)
         pipe = criar_xgboost(X)
-        pipe.named_steps["model"].set_params(**HP)
-        modelo = aplicar_transformacao_target(clone(pipe), TRANSFORM)
+        pipe.named_steps["model"].set_params(**HIPERPARAMETROS)
+        modelo = aplicar_transformacao_target(clone(pipe), TRANSFORMACAO)
         folds = validacao_cruzada_grupos(modelo, X, y, grupos)
         linhas.append({
             "cenario": rotulo,
@@ -141,17 +130,17 @@ def ablacao(df_com: pd.DataFrame) -> pd.DataFrame:
     return res
 
 
-def figura(res: pd.DataFrame) -> None:
+def figura_ablacao(res: pd.DataFrame) -> None:
     metricas = [("rmse", "RMSE (p.p.) ↓"), ("spearman", "Spearman ↑"),
                 ("precision_at_k", "Precision@K ↑")]
     cores = {"com_ied_icg": "#C62828", "sem_ied_icg": "#1565C0"}
     rotulos = {"com_ied_icg": "COM IED+ICG", "sem_ied_icg": "SEM IED+ICG (modelo final)"}
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.2))
-    for ax, (m, titulo) in zip(axes, metricas):
+    for ax, (metrica, titulo) in zip(axes, metricas):
         for i, (_, r) in enumerate(res.iterrows()):
-            ax.bar(i, r[m], color=cores[r["cenario"]], alpha=0.85, width=0.6)
-            ax.text(i, r[m], f"{r[m]:.3f}", ha="center", va="bottom", fontsize=10)
+            ax.bar(i, r[metrica], color=cores[r["cenario"]], alpha=0.85, width=0.6)
+            ax.text(i, r[metrica], f"{r[metrica]:.3f}", ha="center", va="bottom", fontsize=10)
         ax.set_xticks(range(len(res)))
         ax.set_xticklabels([rotulos[c] for c in res["cenario"]], fontsize=8)
         ax.set_title(titulo, fontsize=11)
@@ -159,19 +148,10 @@ def figura(res: pd.DataFrame) -> None:
                  "(GroupKFold por município, mesmos hiperparâmetros, target=sqrt)",
                  fontsize=12, fontweight="bold")
     fig.tight_layout()
-    out = FIGURAS_DIR / "D1_ablacao_ied_icg.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    logger.info("Figura salva: %s", out)
+    salvar_figura(fig, "D1_ablacao_ied_icg.png")
 
 
-def main() -> None:
-    df_com = montar_dataset_com_novas()
-    print(f"Dataset de avaliação: {df_com.shape} (inclui {NOVAS} só para esta análise)")
-    correlacoes(df_com)
-    res = ablacao(df_com)
-    figura(res)
-
+def conclusao(res: pd.DataFrame) -> None:
     sep("CONCLUSÃO")
     com = res[res["cenario"] == "com_ied_icg"].iloc[0]
     sem = res[res["cenario"] == "sem_ied_icg"].iloc[0]
@@ -184,6 +164,16 @@ IED e ICG NÃO agregam poder preditivo ao modelo:
 DECISÃO: IED e ICG ficam FORA das features, do XGBoost e do SHAP.
          Permanecem como ETL + análise descritiva (notebook 04, figuras C7/C8).
 """)
+
+
+def main() -> None:
+    df_com = montar_dataset_com_novas()
+    print(f"Dataset de avaliação: {df_com.shape} (inclui {FEATURES_NOVAS} só para esta análise)")
+
+    correlacoes(df_com)
+    res = ablacao(df_com)
+    figura_ablacao(res)
+    conclusao(res)
 
 
 if __name__ == "__main__":

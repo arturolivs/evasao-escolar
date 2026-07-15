@@ -21,27 +21,24 @@ Saídas:
 
 from __future__ import annotations
 
-import logging
-import sys
-from pathlib import Path
+from comum import (
+    CORES_MODELOS,
+    FIGURAS_DIR,
+    LABELS_MODELOS,
+    NOMES_CURTOS_MESORREGIOES,
+    REPORTS_DIR,
+    salvar_figura,
+    sep,
+)
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.stats import spearmanr
 from sklearn.base import clone
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
 from sklearn.metrics import auc, precision_recall_curve, roc_auc_score, roc_curve
 from sklearn.model_selection import GroupShuffleSplit
-
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
 
 from src.models.evaluate import calcular_metricas, precision_at_k
 from src.models.train import (
@@ -53,44 +50,13 @@ from src.models.train import (
     split_temporal,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-logger = logging.getLogger(__name__)
-
-FIGURAS_DIR = ROOT / "reports" / "figuras"
-FIGURAS_DIR.mkdir(parents=True, exist_ok=True)
-REPORTS_DIR = ROOT / "reports"
-
 # Configurações vencedoras da Fase 5 (notebook 06)
 PARAMS_RIDGE = {"alpha": 100.0}
 PARAMS_RF = {"n_estimators": 300, "max_depth": 8, "min_samples_leaf": 5}
-TRANSF_RIDGE = "sqrt"        # melhor transformação p/ Ridge (M2)
-TRANSF_RF = "identidade"     # melhor p/ Random Forest (M2)
+TRANSF_RIDGE = "sqrt"
+TRANSF_RF = "identidade"
 
-N_REPETICOES_CV = 20         # repetições da CV agrupada (M6)
-
-CORES = {"ridge": "#1565C0", "random_forest": "#2E7D32", "dummy": "#9E9E9E"}
-LABELS = {"ridge": "Ridge", "random_forest": "Random Forest", "dummy": "Dummy (média)"}
-
-LABELS_MESO = {
-    2601: "São Francisco",
-    2602: "Sertão",
-    2603: "Agreste",
-    2604: "Mata",
-    2605: "Metropolitana",
-}
-
-
-def sep(titulo: str) -> None:
-    print(f"\n{'=' * 70}")
-    print(f"  {titulo}")
-    print("=" * 70)
-
-
-def salvar_figura(fig: plt.Figure, nome: str) -> None:
-    caminho = FIGURAS_DIR / nome
-    fig.savefig(caminho, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    logger.info("Figura salva: %s", caminho)
+N_REPETICOES_CV = 20
 
 
 def criar_modelos_vencedores(X: pd.DataFrame) -> dict:
@@ -121,16 +87,9 @@ def predicoes_temporais(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, dict
 # M5 — RANKING FLEXÍVEL: PRECISION@K E CAPTURA POR K
 # =============================================================================
 
-def analise_ranking_por_k(teste: pd.DataFrame, y_te: pd.Series, preds: dict) -> None:
-    sep("M5 — RANKING FLEXÍVEL TOP-N (Precision@K e captura de críticas por K)")
-
+def desempenho_por_k(y_te: pd.Series, preds: dict, ks: list[int],
+                     criticas: set) -> pd.DataFrame:
     n = len(y_te)
-    limiar_critico = np.percentile(y_te, 90)
-    criticas = set(np.flatnonzero(y_te.values >= limiar_critico))
-    print(f"\nTeste temporal: {n} escolas  |  limiar crítico (P90): "
-          f"{limiar_critico:.1f}% de abandono  |  escolas críticas: {len(criticas)}")
-
-    ks = [10, 20, 30, 50, 75, 100, 125, 150, 200]
     linhas = []
     for nome, y_pred in preds.items():
         for k in ks:
@@ -143,21 +102,24 @@ def analise_ranking_por_k(teste: pd.DataFrame, y_te: pd.Series, preds: dict) -> 
                 "aleatorio_precision": k / n,
                 "aleatorio_captura": k / n,
             })
-    res = pd.DataFrame(linhas)
+    return pd.DataFrame(linhas)
 
+
+def relatorio_ranking_por_k(res: pd.DataFrame, preds: dict) -> None:
     print(f"\n{'Modelo':<16}{'K':>6}{'P@K':>8}{'Captura críticas':>18}{'Aleatório':>11}")
     print("-" * 60)
     for _, r in res.iterrows():
         print(f"  {r['modelo']:<14}{r['k']:>6.0f}{r['precision_at_k']:>8.2f}"
               f"{r['captura_criticas']:>18.2f}{r['aleatorio_precision']:>11.2f}")
 
-    # Leitura gerencial: quantas escolas críticas a Secretaria alcança intervindo em K?
     for nome in preds:
         r50 = res[(res["modelo"] == nome) & (res["k"] == 50)].iloc[0]
-        print(f"\n  Intervindo nas top-50 indicadas pelo {LABELS[nome]}: "
+        print(f"\n  Intervindo nas top-50 indicadas pelo {LABELS_MODELOS[nome]}: "
               f"alcança {r50['captura_criticas']*100:.0f}% das escolas críticas "
               f"(aleatório: {r50['aleatorio_captura']*100:.0f}%).")
 
+
+def figura_ranking_por_k(res: pd.DataFrame, preds: dict, limiar_critico: float) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
     for ax, metrica, titulo in zip(
         axes,
@@ -167,8 +129,8 @@ def analise_ranking_por_k(teste: pd.DataFrame, y_te: pd.Series, preds: dict) -> 
     ):
         for nome in preds:
             sub = res[res["modelo"] == nome]
-            ax.plot(sub["k"], sub[metrica], "o-", color=CORES[nome],
-                    lw=2, ms=5, label=LABELS[nome])
+            ax.plot(sub["k"], sub[metrica], "o-", color=CORES_MODELOS[nome],
+                    lw=2, ms=5, label=LABELS_MODELOS[nome])
         sub0 = res[res["modelo"] == "ridge"]
         ax.plot(sub0["k"], sub0["aleatorio_precision"], "--", color="#9E9E9E",
                 lw=1.5, label="Seleção aleatória")
@@ -184,13 +146,26 @@ def analise_ranking_por_k(teste: pd.DataFrame, y_te: pd.Series, preds: dict) -> 
     salvar_figura(fig, "M5_precision_por_k.png")
 
 
+def analise_ranking_por_k(y_te: pd.Series, preds: dict) -> None:
+    sep("M5 — RANKING FLEXÍVEL TOP-N (Precision@K e captura de críticas por K)")
+
+    limiar_critico = np.percentile(y_te, 90)
+    criticas = set(np.flatnonzero(y_te.values >= limiar_critico))
+    print(f"\nTeste temporal: {len(y_te)} escolas  |  limiar crítico (P90): "
+          f"{limiar_critico:.1f}% de abandono  |  escolas críticas: {len(criticas)}")
+
+    ks = [10, 20, 30, 50, 75, 100, 125, 150, 200]
+    res = desempenho_por_k(y_te, preds, ks, criticas)
+
+    relatorio_ranking_por_k(res, preds)
+    figura_ranking_por_k(res, preds, limiar_critico)
+
+
 # =============================================================================
 # M6 — ERRO PADRÃO DAS MÉTRICAS VIA CV REPETIDA
 # =============================================================================
 
-def analise_cv_repetida(df: pd.DataFrame) -> None:
-    sep(f"M6 — ESTABILIDADE DAS MÉTRICAS ({N_REPETICOES_CV} repetições de CV agrupada)")
-
+def executar_cv_repetida(df: pd.DataFrame) -> pd.DataFrame:
     X, y, grupos = preparar_xy(df)
     modelos = criar_modelos_vencedores(X)
 
@@ -207,13 +182,14 @@ def analise_cv_repetida(df: pd.DataFrame) -> None:
             y_pred = m.predict(X.iloc[idx_te])
             met = calcular_metricas(y.iloc[idx_te], y_pred)
             linhas.append({"repeticao": rep, "modelo": nome, **met})
-        # piso trivial
-        media_tr = y.iloc[idx_tr].mean()
-        met = calcular_metricas(y.iloc[idx_te], np.full(len(idx_te), media_tr))
-        linhas.append({"repeticao": rep, "modelo": "dummy", **met})
-    res = pd.DataFrame(linhas)
-    res.to_csv(REPORTS_DIR / "metricas_cv_repetida.csv", index=False)
 
+        media_treino = y.iloc[idx_tr].mean()
+        met = calcular_metricas(y.iloc[idx_te], np.full(len(idx_te), media_treino))
+        linhas.append({"repeticao": rep, "modelo": "dummy", **met})
+    return pd.DataFrame(linhas)
+
+
+def relatorio_cv_repetida(res: pd.DataFrame) -> None:
     print(f"\n{'Modelo':<16}{'Métrica':<16}{'Média':>8}{'DP':>8}{'EP':>8}{'IC 95%':>20}")
     print("-" * 76)
     for nome in ["dummy", "ridge", "random_forest"]:
@@ -226,7 +202,6 @@ def analise_cv_repetida(df: pd.DataFrame) -> None:
             print(f"  {nome:<14}{metrica:<16}{media:>8.3f}{dp:>8.3f}{ep:>8.3f}"
                   f"{f'[{ic[0]:.3f}; {ic[1]:.3f}]':>20}")
 
-    # Sobreposição dos ICs entre Ridge e RF (há diferença significativa?)
     print("\nComparação Ridge × Random Forest (diferença por repetição pareada):")
     for metrica in ["rmse", "spearman"]:
         ridge = res[res["modelo"] == "ridge"].set_index("repeticao")[metrica]
@@ -235,6 +210,8 @@ def analise_cv_repetida(df: pd.DataFrame) -> None:
         ep = dif.std() / np.sqrt(len(dif))
         print(f"  {metrica}: RF − Ridge = {dif.mean():+.3f} ± {1.96*ep:.3f} (IC 95%)")
 
+
+def figura_cv_repetida(res: pd.DataFrame) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
     ordem = ["dummy", "ridge", "random_forest"]
     for ax, metrica, titulo in zip(
@@ -246,8 +223,8 @@ def analise_cv_repetida(df: pd.DataFrame) -> None:
             vals = res[res["modelo"] == nome][metrica].dropna()
             if len(vals) > 0:
                 dados.append(vals)
-                labels_plot.append(LABELS[nome])
-                cores_plot.append(CORES[nome])
+                labels_plot.append(LABELS_MODELOS[nome])
+                cores_plot.append(CORES_MODELOS[nome])
         bp = ax.boxplot(dados, tick_labels=labels_plot, patch_artist=True,
                         medianprops=dict(color="black", lw=2))
         for patch, cor in zip(bp["boxes"], cores_plot):
@@ -262,11 +239,21 @@ def analise_cv_repetida(df: pd.DataFrame) -> None:
     salvar_figura(fig, "M6_cv_repetida.png")
 
 
+def analise_cv_repetida(df: pd.DataFrame) -> None:
+    sep(f"M6 — ESTABILIDADE DAS MÉTRICAS ({N_REPETICOES_CV} repetições de CV agrupada)")
+
+    res = executar_cv_repetida(df)
+    res.to_csv(REPORTS_DIR / "metricas_cv_repetida.csv", index=False)
+
+    relatorio_cv_repetida(res)
+    figura_cv_repetida(res)
+
+
 # =============================================================================
 # M7 — AVALIAÇÃO BINARIZADA PÓS-HOC
 # =============================================================================
 
-def analise_binarizada(teste: pd.DataFrame, y_te: pd.Series, preds: dict) -> None:
+def analise_binarizada(y_te: pd.Series, preds: dict) -> None:
     sep("M7 — AVALIAÇÃO BINARIZADA PÓS-HOC (comparação com a literatura)")
 
     limiar = np.percentile(y_te, 90)
@@ -286,10 +273,10 @@ def analise_binarizada(teste: pd.DataFrame, y_te: pd.Series, preds: dict) -> Non
         print(f"  {nome:<14}{roc_auc:>10.3f}{pr_auc:>10.3f}{pr_auc/prevalencia:>20.1f}x")
 
         fpr, tpr, _ = roc_curve(y_bin, y_pred)
-        axes[0].plot(fpr, tpr, color=CORES[nome], lw=2,
-                     label=f"{LABELS[nome]} (AUC={roc_auc:.3f})")
-        axes[1].plot(rec, prec, color=CORES[nome], lw=2,
-                     label=f"{LABELS[nome]} (PR-AUC={pr_auc:.3f})")
+        axes[0].plot(fpr, tpr, color=CORES_MODELOS[nome], lw=2,
+                     label=f"{LABELS_MODELOS[nome]} (AUC={roc_auc:.3f})")
+        axes[1].plot(rec, prec, color=CORES_MODELOS[nome], lw=2,
+                     label=f"{LABELS_MODELOS[nome]} (PR-AUC={pr_auc:.3f})")
 
     axes[0].plot([0, 1], [0, 1], "--", color="#9E9E9E", lw=1.5, label="Aleatório (AUC=0,5)")
     axes[0].set_xlabel("Taxa de falsos positivos")
@@ -317,22 +304,26 @@ def analise_binarizada(teste: pd.DataFrame, y_te: pd.Series, preds: dict) -> Non
 # M8 — RESÍDUOS: TOP-20 E DISTRIBUIÇÃO POR GRUPO
 # =============================================================================
 
-def analise_residuos_grupos(teste: pd.DataFrame, y_te: pd.Series, preds: dict) -> None:
-    sep("M8 — RESÍDUOS: TOP-20 PERSISTIDOS E DISTRIBUIÇÃO POR GRUPO (§8.4)")
-
+def montar_residuos(teste: pd.DataFrame, preds: dict) -> pd.DataFrame:
     res = teste[["CO_ENTIDADE", "NO_ENTIDADE", "NO_MUNICIPIO", "CO_MESORREGIAO",
                  "is_rural", "is_loc_diferenciada", "taxa_abandono_t1"]].copy()
     res["predito"] = preds["ridge"]
     res["residuo"] = res["taxa_abandono_t1"] - res["predito"]
-    res["mesorregiao"] = res["CO_MESORREGIAO"].map(LABELS_MESO)
+    res["mesorregiao"] = res["CO_MESORREGIAO"].map(NOMES_CURTOS_MESORREGIOES)
+    return res
 
+
+def persistir_top20(res: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     top_pos = res.nlargest(20, "residuo").assign(grupo="acima_do_esperado")
     top_neg = res.nsmallest(20, "residuo").assign(grupo="abaixo_do_esperado")
-    out = pd.concat([top_pos, top_neg])
     out_path = REPORTS_DIR / "residuos_top20_temporal.csv"
-    out.to_csv(out_path, index=False)
+    pd.concat([top_pos, top_neg]).to_csv(out_path, index=False)
     print(f"\nTop-20 ± resíduos salvos em: {out_path}")
+    return top_pos, top_neg
 
+
+def relatorio_residuos_grupos(res: pd.DataFrame, top_pos: pd.DataFrame,
+                              top_neg: pd.DataFrame) -> None:
     print("\nTop-20 ACIMA do esperado (resíduo +) — 5 primeiras:")
     for _, r in top_pos.head(5).iterrows():
         print(f"  {r['NO_ENTIDADE'][:50]:<52} ({r['NO_MUNICIPIO']}): "
@@ -353,10 +344,12 @@ def analise_residuos_grupos(teste: pd.DataFrame, y_te: pd.Series, preds: dict) -
                   f"(n={len(sub)})")
     print("\n  * Localização diferenciada inclui terras indígenas e quilombolas.")
 
+
+def figura_residuos_grupos(res: pd.DataFrame) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
     ax = axes[0]
-    ordem_meso = [LABELS_MESO[c] for c in sorted(LABELS_MESO)]
+    ordem_meso = [NOMES_CURTOS_MESORREGIOES[c] for c in sorted(NOMES_CURTOS_MESORREGIOES)]
     dados = [res[res["mesorregiao"] == m]["residuo"] for m in ordem_meso]
     bp = ax.boxplot(dados, tick_labels=ordem_meso, patch_artist=True,
                     medianprops=dict(color="black", lw=2))
@@ -393,6 +386,15 @@ def analise_residuos_grupos(teste: pd.DataFrame, y_te: pd.Series, preds: dict) -
     salvar_figura(fig, "M8_residuos_grupos.png")
 
 
+def analise_residuos_grupos(teste: pd.DataFrame, preds: dict) -> None:
+    sep("M8 — RESÍDUOS: TOP-20 PERSISTIDOS E DISTRIBUIÇÃO POR GRUPO (§8.4)")
+
+    res = montar_residuos(teste, preds)
+    top_pos, top_neg = persistir_top20(res)
+    relatorio_residuos_grupos(res, top_pos, top_neg)
+    figura_residuos_grupos(res)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -401,10 +403,10 @@ def main() -> None:
     df = carregar_dataset()
     teste, y_te, preds = predicoes_temporais(df)
 
-    analise_ranking_por_k(teste, y_te, preds)
+    analise_ranking_por_k(y_te, preds)
     analise_cv_repetida(df)
-    analise_binarizada(teste, y_te, preds)
-    analise_residuos_grupos(teste, y_te, preds)
+    analise_binarizada(y_te, preds)
+    analise_residuos_grupos(teste, preds)
 
     sep("CONCLUSÃO")
     print("""
