@@ -45,6 +45,7 @@ from src.models.train import (
     RANDOM_STATE,
     aplicar_transformacao_target,
     carregar_dataset,
+    carregar_modelo,
     criar_pipeline,
     preparar_xy,
     split_temporal,
@@ -56,17 +57,28 @@ PARAMS_RF = {"n_estimators": 300, "max_depth": 8, "min_samples_leaf": 5}
 TRANSF_RIDGE = "sqrt"
 TRANSF_RF = "identidade"
 
+# Modelo definitivo da Fase 6 (notebook 08)
+MODELO_XGBOOST = "xgboost_v1"
+
 N_REPETICOES_CV = 20
 
 
 def criar_modelos_vencedores(X: pd.DataFrame) -> dict:
-    """Reconstrói os baselines com os hiperparâmetros vencedores do notebook 06."""
+    """
+    Reconstrói os modelos vencedores: os baselines com os hiperparâmetros do
+    notebook 06 e o XGBoost definitivo do notebook 08.
+
+    O XGBoost vem de `clone` do modelo serializado — cópia não treinada com a
+    mesma configuração — para que estas análises reportem exatamente o modelo
+    que o sistema usa, e não uma reconstrução manual dos hiperparâmetros.
+    """
     ridge = criar_pipeline(X, Ridge(random_state=RANDOM_STATE, **PARAMS_RIDGE))
     rf = criar_pipeline(X, RandomForestRegressor(
         random_state=RANDOM_STATE, n_jobs=-1, **PARAMS_RF))
     return {
         "ridge": aplicar_transformacao_target(ridge, TRANSF_RIDGE),
         "random_forest": aplicar_transformacao_target(rf, TRANSF_RF),
+        "xgboost": clone(carregar_modelo(MODELO_XGBOOST)),
     }
 
 
@@ -192,7 +204,7 @@ def executar_cv_repetida(df: pd.DataFrame) -> pd.DataFrame:
 def relatorio_cv_repetida(res: pd.DataFrame) -> None:
     print(f"\n{'Modelo':<16}{'Métrica':<16}{'Média':>8}{'DP':>8}{'EP':>8}{'IC 95%':>20}")
     print("-" * 76)
-    for nome in ["dummy", "ridge", "random_forest"]:
+    for nome in ["dummy", "ridge", "random_forest", "xgboost"]:
         sub = res[res["modelo"] == nome]
         for metrica in ["rmse", "mae", "spearman", "precision_at_k"]:
             vals = sub[metrica].dropna()
@@ -213,7 +225,7 @@ def relatorio_cv_repetida(res: pd.DataFrame) -> None:
 
 def figura_cv_repetida(res: pd.DataFrame) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
-    ordem = ["dummy", "ridge", "random_forest"]
+    ordem = ["dummy", "ridge", "random_forest", "xgboost"]
     for ax, metrica, titulo in zip(
         axes, ["rmse", "spearman", "precision_at_k"],
         ["RMSE (p.p.)", "Spearman", "Precision@K (10%)"],
