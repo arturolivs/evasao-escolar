@@ -424,6 +424,73 @@ def salvar_dataset(df: pd.DataFrame) -> Path:
     return out
 
 
+def rastrear_reducao_amostra(
+    anos_feature: list[int] | None = None,
+) -> pd.DataFrame:
+    """
+    Reconstrói a cadeia que leva do painel histórico ao conjunto de modelagem.
+
+    A queda de 2.392 para 1.586 linhas não é descarte de dados: é consequência
+    da estrutura de pares (ano t → abandono em t+1). Com três anos de painel só
+    se formam dois pares, e o último ano entra como alvo, não como origem. Sem
+    esse rastro a redução parece perda de amostra — foi o que a revisão da banca
+    apontou.
+
+    Devolve uma etapa por linha, com o que sai e o que resta.
+    """
+    if anos_feature is None:
+        anos_feature = ANOS_FEATURE
+
+    fontes = _carregar_fontes()
+    painel, taxas = fontes["painel"], fontes["taxas"]
+    ultimo_alvo = max(anos_feature) + 1
+
+    pares_alvo = set(zip(taxas["CO_ENTIDADE"], taxas["NU_ANO_CENSO"]))
+    base = painel[painel["NU_ANO_CENSO"].isin(anos_feature)]
+    tem_alvo = pd.Series(
+        [(esc, ano + 1) in pares_alvo
+         for esc, ano in zip(base["CO_ENTIDADE"], base["NU_ANO_CENSO"])],
+        index=base.index,
+    )
+    completos = base[tem_alvo]
+
+    etapas = [
+        {
+            "etapa": "Painel histórico escola x ano",
+            "criterio": "Escolas estaduais de EM em atividade, 2022 a "
+                        f"{ultimo_alvo}",
+            "linhas_removidas": 0,
+            "linhas_restantes": len(painel),
+            "escolas_restantes": painel["CO_ENTIDADE"].nunique(),
+        },
+        {
+            "etapa": f"Anos que podem servir de origem (t = {anos_feature})",
+            "criterio": f"O ano {ultimo_alvo} não tem {ultimo_alvo + 1} para "
+                        "observar: entra como alvo, não como origem",
+            "linhas_removidas": len(painel) - len(base),
+            "linhas_restantes": len(base),
+            "escolas_restantes": base["CO_ENTIDADE"].nunique(),
+        },
+        {
+            "etapa": "Pares completos (t -> t+1)",
+            "criterio": "Escola sem abandono observado no ano seguinte "
+                        "(saiu da rede ou deixou de ofertar EM)",
+            "linhas_removidas": len(base) - len(completos),
+            "linhas_restantes": len(completos),
+            "escolas_restantes": completos["CO_ENTIDADE"].nunique(),
+        },
+    ]
+    return pd.DataFrame(etapas)
+
+
+def salvar_rastreabilidade(df: pd.DataFrame) -> Path:
+    destino = config.ROOT_DIR / "reports" / "rastreabilidade_amostra.csv"
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(destino, index=False)
+    logger.info("Rastreabilidade da amostra salva em: %s", destino)
+    return destino
+
+
 def relatorio_colunas(df: pd.DataFrame) -> None:
     """Imprime inventário de features com tipo, missing e estatística básica."""
     feature_cols = [c for c in df.columns if c not in ID_COLS + ["taxa_abandono_t1"]]
@@ -462,6 +529,16 @@ if __name__ == "__main__":
     print(f"\nShape final: {df.shape}")
     print(f"Anos feature: {sorted(df['NU_ANO_CENSO'].unique())}")
     print(f"Escolas únicas: {df['CO_ENTIDADE'].nunique()}")
+
+    print("\n=== Do painel ao conjunto de modelagem ===")
+    rastro = rastrear_reducao_amostra()
+    salvar_rastreabilidade(rastro)
+    for _, etapa in rastro.iterrows():
+        saem = f"-{etapa['linhas_removidas']}" if etapa["linhas_removidas"] else "-"
+        print(f"  {etapa['etapa']:<46} {saem:>7}  ->  "
+              f"{etapa['linhas_restantes']:>5} linhas / "
+              f"{etapa['escolas_restantes']:>3} escolas")
+        print(f"    {etapa['criterio']}")
     print(f"\nTarget — taxa_abandono_t1:")
     print(df["taxa_abandono_t1"].describe().round(2).to_string())
     print("\n=== Inventário de features ===")

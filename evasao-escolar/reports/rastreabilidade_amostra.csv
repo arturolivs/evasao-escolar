@@ -1,0 +1,4 @@
+etapa,criterio,linhas_removidas,linhas_restantes,escolas_restantes
+Painel histórico escola x ano,"Escolas estaduais de EM em atividade, 2022 a 2024",0,2392,806
+"Anos que podem servir de origem (t = [2022, 2023])","O ano 2024 não tem 2025 para observar: entra como alvo, não como origem",791,1601,804
+Pares completos (t -> t+1),Escola sem abandono observado no ano seguinte (saiu da rede ou deixou de ofertar EM),15,1586,801

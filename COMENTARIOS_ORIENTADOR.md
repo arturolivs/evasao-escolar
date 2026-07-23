@@ -34,13 +34,17 @@ Extraídos em 22/07/2026. Todos os 13 comentários estão no **Capítulo 6 — T
 
 ## Ordem de execução
 
-### Fase 1 — Verificação factual
+### Fase 1 — Verificação factual ✅ **CONCLUÍDA**
 *Primeiro de tudo: pode invalidar texto já escrito.*
+
+> Resultado: **nenhum número do TCC estava errado**. Os três comentários apontavam
+> falhas de apresentação e rastreabilidade, todas corrigidas no pipeline com testes.
+> Pendência aberta: o Quadro 8 não é reprodutível no ambiente atual (ver SS8).
 
 - [x] **SS8** — ~~Auditar a coluna "Reprovação no ano anterior (EM)" no Quadro 5.~~ **Concluído.** Os números estavam corretos; o defeito era a incoerência entre a linha do EM e as das séries (o total do INEP inclui 4ª série e não seriado). Implementado o atributo `oferta_em_nao_seriado` no pipeline + testes. Texto e números para o documento em `SS8_TEXTO_PARA_O_TCC.md`.
   - ⚠️ Achado colateral: o Quadro 8 **não é reprodutível** no ambiente atual — a partição da CV mudou por versão de biblioteca, não pela correção. Resolver junto com o SS13 (Fase 3). Detalhes no mesmo arquivo.
 - [x] **SS12** — ~~Reinterpretar o Quadro 6.~~ **Concluído.** Nenhum número estava errado; o defeito era a tabela misturar duas grandezas (repartição das escolas × médias de grupo) sem sinalizar. Adicionadas contagens e a coluna complementar, Figura 9 regenerada como barra empilhada 100%, + 4 testes. Texto em `SS12_TEXTO_PARA_O_TCC.md`.
-- [ ] **SS1** — Documentar a queda de 2.392 → 1.586 registros (perda do último ano pelo casamento temporal + escolas sem par ano/ano+1), com o número exato de cada exclusão.
+- [x] **SS1** — ~~Documentar a queda de 2.392 → 1.586 registros.~~ **Concluído.** A redução não é descarte: 2.392 → −791 (2024 é alvo, não origem) → 1.601 → −15 (escolas sem par no ano seguinte) → 1.586. Implementado `rastrear_reducao_amostra()` + CSV + 6 testes. Texto e Quadro novo em `SS1_TEXTO_PARA_O_TCC.md`.
 
 ### Fase 2 — Terminologia
 *Varre o documento inteiro; fazer antes de reescrever parágrafos.*
