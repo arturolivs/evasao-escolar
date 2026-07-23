@@ -27,6 +27,7 @@ FEATURE_LABELS: dict[str, str] = {
     "is_rural": "Localização rural",
     "is_loc_diferenciada": "Localização diferenciada (indígena/quilombola)",
     "CO_MESORREGIAO": "Mesorregião",
+    "oferta_em_nao_seriado": "Oferta de EM fora das séries regulares (EJA/modular)",
     # Porte e proporções
     "log_mat_med": "Porte (nº de matrículas)",
     "alunos_por_turma": "Alunos por turma",

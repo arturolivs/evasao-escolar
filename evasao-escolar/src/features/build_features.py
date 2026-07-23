@@ -59,6 +59,17 @@ TAXAS_LAG_COLS = [
     "TAXA_REPROV_MED_S1", "TAXA_REPROV_MED_S2", "TAXA_REPROV_MED_S3",
 ]
 
+# Colunas do INEP que sinalizam matrícula de EM fora das três séries regulares
+# (4ª série e não seriado — EJA/modular). Não entram como taxas (missing alto),
+# mas estão embutidas no total do EM: por isso geram a flag abaixo.
+TAXAS_NAO_SERIADO_COLS = [
+    "TAXA_ABND_MED_S4", "TAXA_ABND_MED_NS",
+    "TAXA_REPROV_MED_S4", "TAXA_REPROV_MED_NS",
+    "TAXA_APROV_MED_S4", "TAXA_APROV_MED_NS",
+]
+
+COL_NAO_SERIADO = "oferta_em_nao_seriado"
+
 # Mapeamento nível INSE → ordinal
 _INSE_NIVEL_MAP = {
     "Nível I": 1, "Nível II": 2, "Nível III": 3, "Nível IV": 4,
@@ -227,6 +238,34 @@ def _adicionar_afd(df: pd.DataFrame, afd: pd.DataFrame) -> pd.DataFrame:
     return df.merge(afd_sel, on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="left")
 
 
+def _adicionar_nao_seriado(df: pd.DataFrame, taxas: pd.DataFrame) -> pd.DataFrame:
+    """
+    Sinaliza escolas cujo EM inclui matrícula fora das três séries regulares.
+
+    As taxas de EM publicadas pelo INEP (`*_CAT_MED`) agregam 1ª a 3ª série,
+    4ª série e o não seriado (EJA/modular). Como só S1–S3 entram como features,
+    nessas escolas a taxa do EM não é redutível às três séries: o total pode
+    superar o máximo delas, e quando não há série regular alguma os valores de
+    S1–S3 são imputados pela média da mesorregião. A flag torna esse subgrupo
+    explícito para o modelo e para a leitura das estatísticas descritivas.
+    """
+    cols = [c for c in TAXAS_NAO_SERIADO_COLS if c in taxas.columns]
+    if not cols:
+        logger.warning("Nenhuma coluna de 4ª série/não seriado disponível; "
+                       "flag %s não criada.", COL_NAO_SERIADO)
+        return df
+
+    marca = taxas[["CO_ENTIDADE", "NU_ANO_CENSO"]].copy()
+    marca[COL_NAO_SERIADO] = taxas[cols].notna().any(axis=1).astype(int)
+    df = df.merge(marca, on=["CO_ENTIDADE", "NU_ANO_CENSO"], how="left")
+    df[COL_NAO_SERIADO] = df[COL_NAO_SERIADO].fillna(0).astype(int)
+    logger.info(
+        "%s: %d de %d linhas com matrícula de EM fora das séries regulares.",
+        COL_NAO_SERIADO, int(df[COL_NAO_SERIADO].sum()), len(df),
+    )
+    return df
+
+
 def _adicionar_taxas_lag(df: pd.DataFrame, taxas: pd.DataFrame) -> pd.DataFrame:
     """Adiciona taxas do ano t como features lag e abandono t+1 como target."""
     # Features lag (mesmo ano t)
@@ -265,6 +304,8 @@ def _colunas_features() -> list[str]:
     """Lista ordenada de features que entram no modelo."""
     # Censo — geográfico/estrutural
     geo = ["is_rural", "is_loc_diferenciada", "CO_MESORREGIAO"]
+    # Oferta — EM fora das três séries regulares (4ª série / não seriado)
+    oferta = [COL_NAO_SERIADO]
     # Censo — porte (QT_MAT_MED excluída: r=1.0 com log_mat_med)
     porte = ["log_mat_med", "alunos_por_turma",
              "alunos_por_docente", "computadores_por_aluno"]
@@ -287,7 +328,7 @@ def _colunas_features() -> list[str]:
         "abnd_t", "abnd_s1_t", "abnd_s2_t", "abnd_s3_t",
         "reprov_t", "reprov_s1_t", "reprov_s2_t", "reprov_s3_t",
     ]
-    return geo + porte + programas + infra + indicadores + taxas_lag
+    return geo + oferta + porte + programas + infra + indicadores + taxas_lag
 
 
 # =============================================================================
@@ -341,6 +382,7 @@ def construir_dataset(anos_feature: list[int] | None = None) -> pd.DataFrame:
                            group_cols=["CO_MESORREGIAO", "NU_ANO_CENSO"])
 
     # ── Taxas lag + target ───────────────────────────────────────────────────
+    df = _adicionar_nao_seriado(df, taxas)
     df = _adicionar_taxas_lag(df, taxas)
 
     # Imputa missings das taxas lag por mesorregião×ano
