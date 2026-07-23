@@ -86,8 +86,15 @@ def descrever_continuas(df: pd.DataFrame, colunas: list[str]) -> pd.DataFrame:
 
 def descrever_binarias(df: pd.DataFrame, colunas: list[str]) -> pd.DataFrame:
     """
-    Prevalência e efeito das colunas de sim/não: qual o abandono médio das
-    escolas que têm o atributo e das que não têm, e se a diferença se sustenta.
+    Prevalência e efeito das colunas de sim/não.
+
+    Duas grandezas distintas convivem aqui, e confundi-las inverte a leitura
+    da tabela. `n_tem`/`n_nao` (e seus percentuais) repartem as escolas em dois
+    grupos — somam o total da rede. Já `abandono_com`/`abandono_sem` são a
+    média do abandono dentro de cada grupo: duas médias da mesma variável, que
+    não se somam a nada. Por isso as contagens são reportadas junto dos
+    percentuais: sem elas o leitor não vê que atributos quase universais
+    (internet, água potável) deixam um grupo de comparação minúsculo.
     """
     alvo = df[TARGET_COL]
     linhas = []
@@ -104,7 +111,12 @@ def descrever_binarias(df: pd.DataFrame, colunas: list[str]) -> pd.DataFrame:
             "informacao": rotular_feature(coluna),
             "tipo": "binária",
             "n": int(df[coluna].notna().sum()),
+            # Repartição das escolas: n_tem + n_nao = n, prevalencia + pct_nao = 100
+            "n_tem": int(tem.sum()),
+            "n_nao": int((~tem).sum()),
             "prevalencia": tem.mean() * 100,
+            "pct_nao": (~tem).mean() * 100,
+            # Médias do abandono dentro de cada grupo — não se somam
             "abandono_com": com.mean(),
             "abandono_sem": sem.mean(),
             "diferenca": com.mean() - sem.mean(),
@@ -162,11 +174,26 @@ def figura_binarias(resumo: pd.DataFrame) -> None:
     rotulos = list(dados["informacao"])
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6), sharey=True)
 
-    barras = ax1.barh(rotulos, dados["prevalencia"], color=COR_BARRA)
-    ax1.bar_label(barras, fmt="%.0f%%", padding=3, fontsize=9)
-    ax1.set_xlim(0, 112)
-    ax1.set_xlabel("% das escolas que têm o atributo")
-    ax1.set_title("Quão comum é o atributo na rede")
+    # Barra empilhada: torna explícito que os dois grupos repartem a rede e
+    # somam 100% — leitura que a barra simples de prevalência não sustentava.
+    ax1.barh(rotulos, dados["prevalencia"], color=COR_COM, label="Têm o atributo")
+    ax1.barh(rotulos, dados["pct_nao"], left=dados["prevalencia"],
+             color=COR_SEM, label="Não têm")
+    # Barras verdes curtas não comportam o rótulo: nelas o texto vai para fora,
+    # em cor escura sobre o trecho cinza.
+    for pos, (pct, n) in enumerate(zip(dados["prevalencia"], dados["n_tem"])):
+        texto = f"{pct:.0f}%  (n={n})"
+        if pct >= 25:
+            ax1.text(pct / 2, pos, texto, ha="center", va="center",
+                     fontsize=8, color="white")
+        else:
+            ax1.text(pct + 1.5, pos, texto, ha="left", va="center",
+                     fontsize=8, color="#37474F")
+    ax1.set_xlim(0, 100)
+    ax1.set_xlabel("Repartição das escolas da rede (%) — os dois grupos somam 100%")
+    ax1.set_title("Quantas escolas têm o atributo")
+    ax1.legend(loc="upper center", bbox_to_anchor=(0.5, -0.13), ncol=2,
+               framealpha=1.0, fontsize=9)
     ax1.grid(axis="x", alpha=0.3)
 
     posicoes = np.arange(len(dados))
@@ -181,13 +208,15 @@ def figura_binarias(resumo: pd.DataFrame) -> None:
             ax2.text(maior + 0.15, posicao, marca, fontsize=10, va="center")
     ax2.set_yticks(posicoes, rotulos)
     ax2.set_xlim(0, maiores.max() * 1.25)
-    ax2.set_xlabel("Taxa média de abandono do ano seguinte (%)")
+    ax2.set_xlabel("Taxa média de abandono do ano seguinte (%)\n"
+                   "— duas médias do mesmo indicador, uma por grupo")
     ax2.set_title("Abandono médio conforme a escola tem ou não o atributo")
     ax2.legend(loc="upper right", framealpha=1.0)
     ax2.grid(axis="x", alpha=0.3)
 
     fig.suptitle("Atributos de sim/não: quão comuns são e o abandono associado\n"
-                 "(* diferença significativa entre os dois grupos)",
+                 "(à esquerda, a repartição das escolas; à direita, o abandono "
+                 "médio de cada grupo · * diferença significativa)",
                  fontsize=14, fontweight="bold")
     fig.tight_layout()
     salvar_figura(fig, "E6_binarias.png")
