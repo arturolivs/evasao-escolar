@@ -29,7 +29,7 @@ FEATURE_LABELS: dict[str, str] = {
     "CO_MESORREGIAO": "Mesorregião",
     "oferta_em_nao_seriado": "Oferta de EM fora das séries regulares (EJA/modular)",
     # Porte e proporções
-    "log_mat_med": "Porte (nº de matrículas)",
+    "log_mat_med": "Porte (logaritmo do nº de matrículas)",
     "alunos_por_turma": "Alunos por turma",
     "alunos_por_docente": "Alunos por docente",
     "computadores_por_aluno": "Computadores por aluno",
