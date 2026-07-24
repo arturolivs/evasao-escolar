@@ -68,7 +68,7 @@ consolidados na seção [Pendências em aberto](#pendências-em-aberto).
 *Maior esforço técnico; roda em paralelo com a Fase 4.*
 
 - [x] **SS13** — ~~Rodar e tabular a comparação de um único modelo em dois cenários temporais (2022→2023 e 2023→2024).~~ **Concluído (24/07/2026).** As duas transições são as duas coortes anuais do dataset (2022→2023 = 797 escolas; 2023→2024 = 789). O modelo adotado (XGBoost) é avaliado **fora da amostra em cada coorte** por validação cruzada agrupada repetida (20 repetições, 20% dos municípios em teste) — mesma régua do Quadro 9, aqui separada por ano. Resultado: o modelo rende mais na transição 2022→2023 (ordenação 0,469, lista 0,627, ROC-AUC 0,901) do que na 2023→2024 (0,367 / 0,381 / 0,813), acompanhando a queda do abandono médio (1,36% → 0,88%). Os dois cenários cercam os números agregados do Quadro 9 (coerência confirmada). Código em `notebooks/14_ss13_cenarios_temporais.py`; números por repetição em `reports/metricas_ss13_cenarios.csv`; figura `reports/figuras/E9_ss13_cenarios.png`; Quadro e texto prontos em `SS13_TEXTO_PARA_O_TCC.md`.
-  - ⚠️ **Ainda não inserido no `.docx`** — o material está pronto para colar em 6.3.2 (novo Quadro + 3 parágrafos + figura a numerar).
+  - ✅ **Inserido no `.docx`** (24/07/2026): nova subseção "Resultados em Cada Transição Anual" em 6.3.2, com **Quadro 11** (5×3), 2 parágrafos (método + leitura) e **Figura 13** (E9), tudo marcado em azul/realce amarelo (padrão de revisão). As Figuras 13–18 antigas foram renumeradas para 14–19 (corpo + Lista de Ilustrações); Quadro 11 e Figura 13 adicionados às listas pré-textuais. Backup em `TCC_ANTES_SS13.docx`. Numeração conferida: Figuras 1–19 e Quadros 1–11, sem lacunas.
   - ✅ **Sem fragilidade de ambiente:** rodado sob scikit-learn 1.9.0 e 1.8.0 com números idênticos (o `GroupShuffleSplit` é estável entre versões, ao contrário do `GroupKFold` que quebrou os Quadros 9/10).
 
 ### Fase 4 — Redação e didática
@@ -149,11 +149,14 @@ consolidados na seção [Pendências em aberto](#pendências-em-aberto).
 
 ### 5. Passagem de regeneração de figuras ⚠️
 
-- **Figuras 12, 13 e 14** (desempenho, ganho da lista, acerto por tamanho de lista):
+- **Figuras 12, 14 e 15** (desempenho, ganho da lista, acerto por tamanho de lista —
+  numeração atualizada após a inserção do SS13, eram 12/13/14):
   os PNGs embutidos no `.docx` ainda mostram as curvas **antigas** do XGBoost. Os
   Quadros 9 e 10 já foram atualizados, mas essas figuras não — precisam ser
   regeradas (notebook 07/12) e re-inseridas para bater com as tabelas. Visualmente a
   diferença é pequena (só o XGBoost mudou), mas há inconsistência.
+  - A nova **Figura 13** (SS13, transições anuais) já é gerada com o modelo atual —
+    não precisa de regeneração.
 - **Títulos internos das Figuras 7 e E2** ainda dizem *"informação"* — resquício do
   SS7, que só tocou texto (notebook 12, `suptitle`).
 - Fazer tudo numa passagem única de figuras.
