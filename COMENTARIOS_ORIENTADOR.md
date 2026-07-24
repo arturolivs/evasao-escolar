@@ -69,8 +69,9 @@ Extraídos em 22/07/2026. Todos os 13 comentários estão no **Capítulo 6 — T
 - [x] **SS10 + SS9 + SS11** — ~~Parágrafo introdutório antes do Quadro 5.~~ **Concluído.** Dois parágrafos novos antes do Quadro 6: glossário dos indicadores (TDI, INSE, AFD Grupos 1/3/5, IRD) e guia das colunas colado na tabela. Aplicado ao `.docx`; backup em `TCC_ANTES_SS9_SS11.docx`.
   - ⚠️ **Divergência com o orientador:** ele exemplificou o INSE como "0 a 10". O dado real do INEP 2021 vai de **2,45 a 6,85** nas 69.820 escolas do país e de **2,97 a 6,10** nesta rede. Usei os números verificados.
   - Achado colateral: o rótulo "Porte (nº de matrículas)" exibia 5,73 — é o **logaritmo**. Rótulo corrigido no quadro e em `labels.py`, com a conversão explicada no texto.
-- [ ] **SS4** — Incluir desvio-padrão junto das médias na seção 6.2.2 (taxas por grupo urbano/rural/indígena). O Quadro 5 já tem a coluna; o texto corrido não.
-- [ ] **SS2 + SS3** — Citar a Figura 7 no texto e escrever o parágrafo que a interpreta. Depois dos itens acima, porque o vocabulário de leitura das estatísticas já estará estabelecido.
+- [x] **SS4** — ~~Incluir desvio-padrão junto das médias na seção 6.2.2.~~ **Concluído.** Urbanas 0,6% (dp 1,8), rurais 0,9% (dp 1,8), indígenas/quilombolas 6,6% (dp 9,0), com frase sobre o que o desvio alto revela. Números conferidos contra a definição exata da Figura 7 no notebook 12.
+- [x] **SS2 + SS3** — ~~Citar a Figura 7 e escrever o parágrafo que a interpreta.~~ **Concluído.** Parágrafo de leitura dos dois painéis inserido **antes** da figura. Backup em `TCC_ANTES_SS2_SS4.docx`.
+  - ⚠️ Pendência menor: o **título interno da Figura 7** ("A informação que o sistema aprende a prever") ainda usa "informação" — resquício do SS7, dentro do PNG. Corrigir na passagem de regeneração de figuras (junto com SS13/ambiente).
 
 ### Fase 5 — Reestruturação
 *Por último; depende de todo o texto acima estar estável.*
