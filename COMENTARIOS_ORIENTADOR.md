@@ -3,6 +3,11 @@
 Fonte: `TCC_Evasao_Escolar_comentários.pdf` (autor dos comentários: SS)
 Extraídos em 22/07/2026. Todos os 13 comentários estão no **Capítulo 6 — Testes e Análise dos Resultados** (páginas 31–39).
 
+**Status (24/07/2026): 13 de 13 concluídos.** O SS13 foi implementado e verificado
+no ambiente de referência (código, números e texto prontos). Restam apenas os
+ajustes manuais de acabamento no Word e a passagem de regeneração de figuras,
+consolidados na seção [Pendências em aberto](#pendências-em-aberto).
+
 ---
 
 ## Lista de comentários
@@ -59,10 +64,12 @@ Extraídos em 22/07/2026. Todos os 13 comentários estão no **Capítulo 6 — T
 - [x] **SS7** — ~~Substituir "informações" por "características" em todo o TCC.~~ **Concluído.** Termo escolhido: **característica** (feminino como "informação", preserva concordâncias; evita anglicismo na linguagem de gestor). 51 parágrafos + 8 células, incluindo 6 títulos de seção. Três exceções deliberadas: o alvo da previsão virou "indicador" (P368/P369 e Quadro 1), e P288/P296/P405 mantêm "informação" no sentido comum. Backup em `TCC_ANTES_SS7.docx`.
   - ⚠️ **Atualizar o sumário no Word** (Ctrl+A, F9): os títulos de seção mudaram e o sumário é campo automático.
 
-### Fase 3 — Novo experimento
+### Fase 3 — Novo experimento ✅ **CONCLUÍDA**
 *Maior esforço técnico; roda em paralelo com a Fase 4.*
 
-- [ ] **SS13** — Rodar e tabular a comparação de um único modelo em dois cenários temporais (2022→2023 e 2023→2024). Único comentário que exige código e execução novos; começar cedo para o resultado estar pronto quando a redação chegar em 6.3.2.
+- [x] **SS13** — ~~Rodar e tabular a comparação de um único modelo em dois cenários temporais (2022→2023 e 2023→2024).~~ **Concluído (24/07/2026).** As duas transições são as duas coortes anuais do dataset (2022→2023 = 797 escolas; 2023→2024 = 789). O modelo adotado (XGBoost) é avaliado **fora da amostra em cada coorte** por validação cruzada agrupada repetida (20 repetições, 20% dos municípios em teste) — mesma régua do Quadro 9, aqui separada por ano. Resultado: o modelo rende mais na transição 2022→2023 (ordenação 0,469, lista 0,627, ROC-AUC 0,901) do que na 2023→2024 (0,367 / 0,381 / 0,813), acompanhando a queda do abandono médio (1,36% → 0,88%). Os dois cenários cercam os números agregados do Quadro 9 (coerência confirmada). Código em `notebooks/14_ss13_cenarios_temporais.py`; números por repetição em `reports/metricas_ss13_cenarios.csv`; figura `reports/figuras/E9_ss13_cenarios.png`; Quadro e texto prontos em `SS13_TEXTO_PARA_O_TCC.md`.
+  - ⚠️ **Ainda não inserido no `.docx`** — o material está pronto para colar em 6.3.2 (novo Quadro + 3 parágrafos + figura a numerar).
+  - ✅ **Sem fragilidade de ambiente:** rodado sob scikit-learn 1.9.0 e 1.8.0 com números idênticos (o `GroupShuffleSplit` é estável entre versões, ao contrário do `GroupKFold` que quebrou os Quadros 9/10).
 
 ### Fase 4 — Redação e didática
 
@@ -73,14 +80,98 @@ Extraídos em 22/07/2026. Todos os 13 comentários estão no **Capítulo 6 — T
 - [x] **SS2 + SS3** — ~~Citar a Figura 7 e escrever o parágrafo que a interpreta.~~ **Concluído.** Parágrafo de leitura dos dois painéis inserido **antes** da figura. Backup em `TCC_ANTES_SS2_SS4.docx`.
   - ⚠️ Pendência menor: o **título interno da Figura 7** ("A informação que o sistema aprende a prever") ainda usa "informação" — resquício do SS7, dentro do PNG. Corrigir na passagem de regeneração de figuras (junto com SS13/ambiente).
 
-### Fase 5 — Reestruturação
+### Fase 5 — Reestruturação ✅ **CONCLUÍDA**
 *Por último; depende de todo o texto acima estar estável.*
 
-- [ ] **SS5 + SS6** — Mover o parágrafo "Daí decorre o critério de avaliação…" para depois de toda a análise estatística (provavelmente o fecho da seção 6.2) e transferir a parte argumentativa ("seria inútil ao gestor") para a conclusão do TCC. Deixar por último porque é um recorte-e-cola que quebra se os parágrafos vizinhos ainda estiverem em mudança.
+- [x] **SS5 + SS6** — ~~Mover o parágrafo "Daí decorre o critério…"~~ **Concluído.** Removido do ponto prematuro (entre 6.2.2 e 6.2.3). Ponte metodológica enxuta (só "ordem, não valor") inserida no fim de 6.2, antes de "Desempenho do Sistema". Parte argumentativa ("responder zero seria inútil ao gestor") dobrada ao parágrafo "Sobre o problema" da conclusão. Backup em `TCC_ANTES_SS5_SS6.docx`.
+
+---
+
+## Pendências em aberto
+
+### 1. SS13 — ✅ **RESOLVIDO (24/07/2026)**
+
+- **Feito:** um único modelo (XGBoost adotado) avaliado nas duas transições anuais em
+  separado, fora da amostra, com Quadro e texto prontos (`SS13_TEXTO_PARA_O_TCC.md`).
+  Ver detalhe na Fase 3 acima.
+- **Falta só inserir no `.docx`** (novo Quadro em 6.3.2 + 3 parágrafos + figura a
+  numerar). Não há mais nenhum experimento pendente.
+- **Deriva de ambiente corrigida nesta sessão:** o venv estava com scikit-learn 1.9.0;
+  reinstalei a 1.8.0 (versão fixada no `requirements.txt`) antes de gerar os números.
+  Alerta remanescente: `shap` está em 0.52.0 vs 0.51.0 fixado — não afeta números de
+  métrica (só as figuras do notebook 09), mas alinhar antes de regerar figuras do SHAP.
+
+### 2. Ambiente reprodutível — Quadros 9 e 10 regenerados ✅ **RESOLVIDO (23/07/2026)**
+
+- **Ação tomada:** `requirements.txt` agora fixa todas as versões com `==` (ambiente de
+  referência: Python 3.14, Windows). Reexecução dupla do notebook 07 confirma
+  reprodutibilidade: Spearman e Precision@K idênticos entre execuções (só ruído de
+  ponto flutuante em 1e-16 no RMSE, sem afetar dígito exibido).
+- **Achado ao regenerar:** apenas a linha do **modelo adotado (XGBoost)** mudou — a
+  causa não era a partição da CV, e sim a versão do **xgboost (3.2.0)**. Ridge, Random
+  Forest e "sem sistema" ficaram idênticos ao commit.
+- **Quadros 9 e 10 atualizados no `.docx`** com os números reprodutíveis. Backup em
+  `TCC_ANTES_QUADRO9.docx`.
+
+⚠️ **Consequência de narrativa que o autor precisa avaliar antes da defesa:**
+  - O Spearman do modelo adotado caiu de 0,458 → **0,416** (validação repetida) e de
+    0,390 → **0,348** (teste temporal); a captura da lista de 150 caiu de 64% → **57%**;
+    o ROC-AUC de 0,830 → **0,798**.
+  - Com isso, **o XGBoost deixou de liderar** claramente. Na validação repetida o
+    Random Forest tem Spearman ligeiramente maior (0,431 vs 0,416) e RMSE menor; no
+    teste temporal o XGBoost ainda lidera de raspão (Spearman 0,348 vs 0,343). Os três
+    modelos são **estatisticamente indistinguíveis** (ICs sobrepostos).
+  - A frase falsa *"o modelo adotado alcança o melhor acerto de ordenação de todos"* foi
+    **reescrita** para o empate honesto (P416). Todas as citações numéricas na conclusão
+    e no resumo foram atualizadas.
+  - **Decisão em aberto:** a escolha do XGBoost como modelo adotado continua defensável
+    (lidera o teste temporal, que simula o uso real; SHAP construído sobre ele; empate
+    dentro do ruído), mas o autor deve estar preparado para justificá-la, já que o RF
+    empata ou supera em vários pontos. **Não** alterei o modelo adotado — seria decisão
+    de mérito, não de correção.
+- Análise técnica completa em `SS8_TEXTO_PARA_O_TCC.md`, seção 6.
+
+### 3. Divergência factual com o orientador — escala do INSE (resolvida no texto)
+
+- O orientador exemplificou o INSE como *"varia de 0 a 10"* (SS11). O dado real do INEP
+  2021 vai de **2,45 a 6,85** nas 69.820 escolas do país e de **2,97 a 6,10** nesta
+  rede. O texto usa os números verificados.
+- **Ação sugerida:** ter os números à mão na defesa, caso o orientador questione.
+
+### 4. Ajustes a fazer no Word (manuais)
+
+- **Atualizar o sumário:** os títulos de seção mudaram (SS7) e o sumário é campo
+  automático — abrir o `.docx`, Ctrl+A, F9.
+- **Conferir a largura das colunas** dos Quadros 5 (novo) e 7 (reestruturado): foram
+  montados somando os mesmos 9.070 dxa das demais tabelas, mas o Quadro 7 tem seis
+  colunas e o cabeçalho pode quebrar no meio de palavra — que foi justamente uma queixa
+  do orientador sobre o quadro antigo.
+
+### 5. Passagem de regeneração de figuras ⚠️
+
+- **Figuras 12, 13 e 14** (desempenho, ganho da lista, acerto por tamanho de lista):
+  os PNGs embutidos no `.docx` ainda mostram as curvas **antigas** do XGBoost. Os
+  Quadros 9 e 10 já foram atualizados, mas essas figuras não — precisam ser
+  regeradas (notebook 07/12) e re-inseridas para bater com as tabelas. Visualmente a
+  diferença é pequena (só o XGBoost mudou), mas há inconsistência.
+- **Títulos internos das Figuras 7 e E2** ainda dizem *"informação"* — resquício do
+  SS7, que só tocou texto (notebook 12, `suptitle`).
+- Fazer tudo numa passagem única de figuras.
+
+### 6. Numeração dos quadros mudou ⚠️
+
+- O Quadro 5 novo (rastreabilidade da amostra) empurrou os demais: antigo **5→6, 6→7,
+  7→8, 8→9, 9→10**. Os comentários originais do orientador citam a numeração **antiga**.
+
+### 7. Limpeza de backups
+
+- Acumulados durante as edições: `TCC_Evasao_Escolar_ANTES_SS1_SS8_SS12.docx`,
+  `TCC_ANTES_SS7.docx`, `TCC_ANTES_SS9_SS11.docx`, `TCC_ANTES_SS2_SS4.docx`,
+  `TCC_ANTES_SS5_SS6.docx`. Apagar após conferência final no Word.
 
 ---
 
 ## Observações sobre o caminho crítico
 
-- **SS8 → Fase 4:** se o recálculo da coluna de reprovação mudar valores, os parágrafos interpretativos precisam ser escritos sobre os números corretos.
-- **SS13** é o item de maior risco de prazo, por depender de execução de código — vale destravá-lo já na Fase 1, em paralelo.
+- **SS8 → Fase 4:** se o recálculo da coluna de reprovação mudar valores, os parágrafos interpretativos precisam ser escritos sobre os números corretos. *(Resolvido: os números não mudaram.)*
+- **SS13** é o item de maior risco de prazo, por depender de execução de código e da reprodutibilidade do ambiente (Pendência 2).

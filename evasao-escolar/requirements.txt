@@ -1,13 +1,25 @@
-pandas>=2.0
-pyarrow>=14.0
-numpy>=1.24
-scikit-learn>=1.3
-xgboost>=2.0
-scipy>=1.10
-shap>=0.44
-streamlit>=1.30
-matplotlib>=3.7
-seaborn>=0.12
-plotly>=5.15
-pytest>=7.0
-pytest-cov>=4.0
+# Versões fixadas para reprodutibilidade.
+#
+# A partição da validação cruzada (GroupKFold) depende da implementação do
+# scikit-learn: versões diferentes produzem folds diferentes e, portanto,
+# métricas diferentes no Quadro 9 — ainda que os dados e o código sejam os
+# mesmos. Por isso as versões são presas com '==', não com '>='. Regerar
+# qualquer resultado numérico do Capítulo 6 exige este ambiente exato.
+#
+# Ambiente de referência: Python 3.14, Windows.
+
+pandas==3.0.3
+pyarrow==24.0.0
+numpy==2.4.6
+scikit-learn==1.8.0
+xgboost==3.2.0
+scipy==1.17.1
+shap==0.51.0
+joblib==1.5.3
+streamlit==1.57.0
+matplotlib==3.10.9
+seaborn==0.13.2
+plotly==6.7.0
+openpyxl==3.1.5
+pytest==9.0.3
+pytest-cov==7.1.0
