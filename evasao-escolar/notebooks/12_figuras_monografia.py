@@ -134,7 +134,7 @@ def figura_alvo(df: pd.DataFrame, features: pd.DataFrame) -> None:
     ax2.set_title(f"O risco não é igual em toda a rede ({ano_ref})")
     ax2.grid(axis="y", alpha=0.3)
 
-    fig.suptitle("A informação que o sistema aprende a prever",
+    fig.suptitle("O indicador que o sistema aprende a prever",
                  fontsize=14, fontweight="bold")
     fig.tight_layout()
     salvar_figura(fig, "E2_alvo.png")
@@ -163,7 +163,7 @@ def figura_variaveis(features: pd.DataFrame) -> None:
     ax.set_xlim(correlacoes.min() * 1.35, correlacoes.max() * 1.25)
     ax.set_xlabel("Relação com o abandono do ano seguinte\n"
                   "(vermelho: aumenta o risco · azul: reduz o risco)")
-    ax.set_title("As 15 informações mais associadas ao abandono do ano seguinte",
+    ax.set_title("As 15 características mais associadas ao abandono do ano seguinte",
                  fontsize=13, fontweight="bold")
     ax.grid(axis="x", alpha=0.3)
     fig.tight_layout()

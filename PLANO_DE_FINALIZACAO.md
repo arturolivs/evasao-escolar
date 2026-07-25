@@ -16,44 +16,42 @@ autor e preparação para a defesa** — nenhuma tarefa de pesquisa em aberto.
 
 ---
 
-## Tier 1 — Correções de consistência (antes de entregar)
+## Tier 1 — Correções de consistência ✅ EXECUTADO (24/07/2026)
 
-*São inconsistências internas do documento; um avaliador atento as nota.*
+*Backup do estado anterior: `TCC_ANTES_TIER1.docx`. Restou apenas o item 1.4, que
+depende do autor.*
 
-- [ ] **1.1 Regenerar e reinserir as figuras de desempenho desatualizadas.**
-  As **Figuras 12, 15 e 16** (distribuição das medidas de desempenho; ganho da lista
-  de prioridade; acerto por tamanho de lista) ainda exibem as curvas **antigas** do
-  XGBoost, de antes da fixação do ambiente (scikit-learn 1.8.0). Os Quadros 9 e 10 já
-  foram atualizados, então há divergência tabela × figura. Regerar com
-  `python notebooks/07_avaliacao_complementar.py` e `python notebooks/12_figuras_monografia.py`
-  e **reinserir os PNGs** no `.docx` (regerar o arquivo não atualiza a imagem embutida).
-  Visualmente a diferença é pequena (só o XGBoost mudou), mas é inconsistência real.
+- [x] **1.1 Regenerar e reinserir as figuras de desempenho desatualizadas. ✅**
+  Regeradas com `notebooks/07` e `notebooks/12` (ambiente fixado, scikit-learn 1.8.0) e
+  **reembutidas** no `.docx`: **Figura 12** (M6_cv_repetida), **Figura 15**
+  (E4_desempenho) e **Figura 16** (M5_precision_por_k). Agora batem com os Quadros 9 e
+  10. Conferido visualmente (F12: XGBoost Spearman ~0,42, RF ~0,44).
 
-- [ ] **1.2 Corrigir os títulos internos das Figuras 7 e E2.**
-  Os PNGs ainda trazem a palavra “informação” no título interno — resquício da troca
-  “informação → característica” (SS7), que só tocou o texto, não o `suptitle` do
-  `notebooks/12_figuras_monografia.py`. Corrigir no notebook, regerar e reinserir.
-  Fazer junto com o item 1.1, numa passagem única de figuras.
+- [x] **1.2 Corrigir os títulos internos das figuras (“informação”). ✅**
+  Corrigidos nos notebooks e reembutidos: **Figura 7** (E2) “A informação…” → “**O
+  indicador** que o sistema aprende a prever”; **Figura 8** (E5), **Figura 10** (E8) e
+  **Figura 11** (E7) “informação(ões)” → “**característica(s)**”. Também ajustado o
+  título de E3 no notebook (figura não usada no `.docx`). Total: 7 figuras reembutidas,
+  altura reajustada ao novo aspecto para não distorcer.
 
-- [ ] **1.3 Atualizar a contagem de testes: 98 → 114.**
-  O texto cita “**98 testes**” em **4 lugares** (Cap. 3 e Cap. 6), mas a suíte atual
-  tem **114 testes passando** (os comentários SS1/SS8/SS12 acrescentaram casos). Rodar
-  `pytest tests/ -q` para confirmar o número e corrigir as quatro ocorrências.
+- [x] **1.3 Contagem de testes 98 → 114. ✅** `pytest` confirma **114 passando**; as 4
+  ocorrências de “98 testes” no `.docx` foram atualizadas para “114 testes”.
 
-- [ ] **1.4 Ficha catalográfica.**
-  O bloco pré-textual ainda tem o **texto-modelo da PUC**: “Gerenciador de ficha
-  catalográfica: http://biblio2.pucsp.br/ficha/… Obs. Após inserir a ficha deletar
-  este texto”. Gerar a ficha real no link e **substituir esse texto**.
+- [ ] **1.4 Ficha catalográfica. ⏳ DEPENDE DO AUTOR.** Não foi tocada de propósito: o
+  bloco ainda traz “Gerenciador de ficha catalográfica: http://biblio2.pucsp.br/ficha/…
+  Obs. Após inserir a ficha deletar este texto”. Só o autor pode **gerar a ficha real**
+  no link (com seus dados) e então apagar essa observação. Deixar como está até lá.
 
-- [ ] **1.5 Atualizar todos os campos no Word (Ctrl+A, F9).**
-  Preenche a paginação do **Sumário**, a **Lista de Ilustrações** (20 figuras) e a
-  **Lista de Quadros** (11 quadros). Ao abrir, o Word já deve perguntar se quer
-  atualizar — aceitar. Conferir se as listas batem com o corpo.
+- [x] **1.5 Preparado o auto-update de campos. ✅** Inserido
+  `<w:updateFields w:val="true"/>` no `settings.xml` → **ao abrir no Word, ele já
+  pergunta se quer atualizar os campos** (Sumário, Lista de Ilustrações com 20 figuras,
+  Lista de Quadros com 11). O autor só precisa **aceitar** (ou Ctrl+A, F9). Esta parte
+  é intrínseca ao Word e não há como preencher a paginação fora dele.
 
-- [ ] **1.6 Conferir a largura das colunas dos Quadros 5 e 7.**
-  Foram montados somando os mesmos 9.070 dxa das demais tabelas; o Quadro 7 tem seis
-  colunas e o cabeçalho pode quebrar no meio de palavra — que foi justamente uma
-  queixa do orientador sobre o quadro antigo.
+- [x] **1.6 Larguras dos Quadros 5 e 7 conferidas. ✅** Quadro 5 (4 colunas, cabeçalhos
+  curtos “Etapa/Critério/Linhas/Escolas”): sem problema. Quadro 7 (6 colunas, 9.070 dxa):
+  os cabeçalhos são multipalavra e **quebram em espaços, não no meio de palavra** — o
+  defeito que o orientador apontara não se repete. Vale só uma conferida visual no Word.
 
 ---
 

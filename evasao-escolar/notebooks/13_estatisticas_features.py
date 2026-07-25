@@ -162,7 +162,7 @@ def figura_distribuicoes(df: pd.DataFrame, resumo: pd.DataFrame) -> None:
         eixo.grid(axis="y", alpha=0.25)
     for eixo in eixos.flat[len(colunas):]:
         eixo.axis("off")
-    fig.suptitle("Como cada informação contínua se distribui na rede estadual\n"
+    fig.suptitle("Como cada característica contínua se distribui na rede estadual\n"
                  "(linha tracejada: mediana)", fontsize=14, fontweight="bold")
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     salvar_figura(fig, "E5_distribuicoes.png")
@@ -238,7 +238,7 @@ def figura_relacao_geral(resumo: pd.DataFrame) -> None:
     eixo.set_xlabel("Relação com o abandono do ano seguinte\n"
                     "(vermelho: aumenta o risco · azul: reduz · cinza: sem relação "
                     "estatística)")
-    eixo.set_title(f"As {len(dados)} informações numéricas ordenadas pela relação "
+    eixo.set_title(f"As {len(dados)} características numéricas ordenadas pela relação "
                    "com o abandono", fontsize=13, fontweight="bold")
     eixo.tick_params(labelsize=8)
     eixo.grid(axis="x", alpha=0.3)
@@ -267,7 +267,7 @@ def figura_categorica(resumo: pd.DataFrame) -> None:
     ax2.set_title("Peso de cada região no conjunto de dados")
     ax2.grid(axis="x", alpha=0.3)
 
-    fig.suptitle("Região do estado: a única informação categórica",
+    fig.suptitle("Região do estado: a única característica categórica",
                  fontsize=14, fontweight="bold")
     fig.tight_layout()
     salvar_figura(fig, "E8_mesorregiao.png")
