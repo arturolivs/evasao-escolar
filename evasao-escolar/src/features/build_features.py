@@ -10,9 +10,15 @@ Lógica temporal:
     - features = atributos da escola no ano t
     - target   = taxa de abandono EM observada no ano t+1
 
-  O ano 2024 não entra como ano-feature porque não há dados de 2025.
+  O ano 2024 não entra como ano-feature de TREINO porque não há dados de 2025.
 
-Saída: data/processed/features.parquet
+Modo predição:
+  A mesma engenharia serve para PREVER um ano cujo alvo ainda não foi observado.
+  `construir_dataset_predicao(ano_feature)` monta o vetor de características de um
+  ano t (ex.: 2024) sem exigir o alvo de t+1, para que o modelo já treinado
+  estime o abandono de t+1 (ex.: 2025). É o que separa treinar de usar.
+
+Saída: data/processed/features.parquet (treino) ou features_predicao_<t+1>.parquet
 """
 
 from __future__ import annotations
@@ -335,14 +341,23 @@ def _colunas_features() -> list[str]:
 # PIPELINE PRINCIPAL
 # =============================================================================
 
-def construir_dataset(anos_feature: list[int] | None = None) -> pd.DataFrame:
+def construir_dataset(
+    anos_feature: list[int] | None = None,
+    exigir_target: bool = True,
+) -> pd.DataFrame:
     """
-    Constrói o dataset completo de features + target.
+    Constrói o dataset completo de features (+ target, quando disponível).
 
     Retorna um DataFrame com:
       - Colunas de ID (CO_ENTIDADE, NU_ANO_CENSO, ...)
       - Features do Censo, derivadas e de indicadores complementares
       - Target: taxa_abandono_t1
+
+    Parâmetros:
+      exigir_target: se True (treino), descarta as escolas sem abandono
+        observado no ano seguinte. Se False (predição), mantém todas as
+        escolas do ano-feature — o alvo fica ausente (NaN) porque t+1 ainda
+        não aconteceu, e o modelo já treinado é quem preenche a previsão.
     """
     if anos_feature is None:
         anos_feature = ANOS_FEATURE
@@ -393,13 +408,16 @@ def construir_dataset(anos_feature: list[int] | None = None) -> pd.DataFrame:
     df = _imputar_por_meso(df, cols=taxas_lag_cols,
                            group_cols=["CO_MESORREGIAO", "NU_ANO_CENSO"])
 
-    # ── Remove linhas sem target ─────────────────────────────────────────────
-    n_antes = len(df)
-    df = df[df["taxa_abandono_t1"].notna()].copy()
-    logger.info(
-        "Linhas com target: %d (removidas %d sem target).",
-        len(df), n_antes - len(df),
-    )
+    # ── Remove linhas sem target (apenas em modo treino) ─────────────────────
+    if exigir_target:
+        n_antes = len(df)
+        df = df[df["taxa_abandono_t1"].notna()].copy()
+        logger.info(
+            "Linhas com target: %d (removidas %d sem target).",
+            len(df), n_antes - len(df),
+        )
+    else:
+        logger.info("Modo predição: %d escolas mantidas sem exigir target.", len(df))
 
     # ── Seleciona e reordena colunas ─────────────────────────────────────────
     feature_cols = _colunas_features()
@@ -421,6 +439,45 @@ def salvar_dataset(df: pd.DataFrame) -> Path:
     out = config.PROCESSED_DIR / "features.parquet"
     df.to_parquet(out, index=False)
     logger.info("Salvo em: %s", out)
+    return out
+
+
+def construir_dataset_predicao(ano_feature: int) -> pd.DataFrame:
+    """
+    Monta o vetor de características de um único ano para PREVISÃO.
+
+    Usa a mesma engenharia do treino, mas não exige o alvo (o abandono de
+    `ano_feature + 1` ainda não foi observado). O DataFrame resultante tem as
+    mesmas colunas de features do `features.parquet` — pronto para o modelo já
+    treinado prever o abandono do ano seguinte.
+
+    Exige que as fontes do ano solicitado (Censo, taxas de rendimento, TDI,
+    AFD, IRD) já estejam nos parquets de `data/interim/`. O INSE é estático.
+    """
+    fontes_ok = pd.read_parquet(
+        config.INTERIM_DIR / "painel_escola_ano_pe_estadual_em.parquet",
+        columns=["NU_ANO_CENSO"],
+    )
+    anos_disponiveis = set(fontes_ok["NU_ANO_CENSO"].astype(int))
+    if ano_feature not in anos_disponiveis:
+        raise ValueError(
+            f"Sem dados de Censo para o ano-feature {ano_feature}. "
+            f"Anos disponíveis no painel: {sorted(anos_disponiveis)}. "
+            f"Importe as fontes de {ano_feature} para prever {ano_feature + 1}."
+        )
+    df = construir_dataset(anos_feature=[ano_feature], exigir_target=False)
+    logger.info(
+        "Características de %d prontas para prever o abandono de %d: %d escolas.",
+        ano_feature, ano_feature + 1, len(df),
+    )
+    return df
+
+
+def salvar_predicao_features(df: pd.DataFrame, ano_feature: int) -> Path:
+    config.PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    out = config.PROCESSED_DIR / f"features_predicao_{ano_feature + 1}.parquet"
+    df.to_parquet(out, index=False)
+    logger.info("Features de predição salvas em: %s", out)
     return out
 
 
