@@ -67,14 +67,17 @@ depende do autor.*
 
 ## Tier 3 — Preparação para a defesa
 
-- [ ] **3.1 Justificar a escolha do XGBoost como modelo adotado.**
-  Depois da fixação do ambiente, o XGBoost **deixou de liderar com folga**: na
-  validação repetida o Random Forest empata ou supera (Spearman 0,431 vs 0,416) e os
-  três modelos são estatisticamente indistinguíveis. A escolha segue defensável —
-  lidera o teste temporal (que simula o uso real), é a base do SHAP, e o empate está
-  dentro do ruído —, mas convém **ter o argumento pronto**, pois a banca pode
-  perguntar. (Já corrigido no texto: não há mais a frase de que o modelo adotado é “o
-  melhor de todos”.)
+- [x] **3.1 Justificar a escolha do XGBoost como modelo adotado. ✅ FEITO no texto
+  (24/07).** Inserido um parágrafo honesto ao fim da subseção do teste temporal (6.3,
+  antes das transições anuais). Argumento: como o sistema serve para **priorizar**, as
+  medidas centrais são ordenação e acerto da lista — e nelas o XGBoost se sai melhor no
+  teste do ano nunca visto; reconhece que o Random Forest leva vantagem no **RMSE** e no
+  **ROC-AUC** (dimensões menos centrais para “onde intervir primeiro”); e lembra que o
+  SHAP é construído sobre o XGBoost. Fecha dizendo que as diferenças estão dentro da
+  margem de incerteza. Backup `TCC_ANTES_JUSTIFICATIVA.docx`.
+  - Nuance conferida no Quadro 10 (teste temporal): XGBoost vence ordenação (0,348 vs
+    0,343) e lista (0,418 vs 0,405); RF vence RMSE (2,751 vs 2,874) e ROC-AUC (0,829 vs
+    0,798). Por isso a redação **não** afirma que o XGBoost é “o melhor no uso real”.
 - [ ] **3.2 Escala do INSE.** O orientador exemplificou “0 a 10” (SS11); o dado real do
   INEP 2021 vai de **2,45 a 6,85** no país e de **2,97 a 6,10** nesta rede. Ter os
   números à mão caso seja questionado.
