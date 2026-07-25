@@ -37,8 +37,9 @@ import numpy as np
 import pandas as pd
 from sklearn.base import clone
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import GroupKFold, GroupShuffleSplit
 
+from src.data import config
 from src.models.evaluate import calcular_metricas
 from src.models.train import (
     ANO_COL,
@@ -184,6 +185,114 @@ def persistir(resultados: dict[int, pd.DataFrame]) -> None:
     print(f"\nMétricas por repetição salvas em: {caminho}")
 
 
+# =============================================================================
+# RESÍDUOS EM NÚMERO DE ALUNOS POR TRANSIÇÃO (a pedido do orientador)
+# =============================================================================
+#
+# O orientador pediu o resíduo expresso em QUANTIDADE DE ALUNOS que abandonaram
+# o ensino médio (não em taxa/porcentagem), um gráfico por transição anual.
+# O modelo prevê a taxa de abandono; convertemos taxa → alunos multiplicando
+# pela matrícula de EM do ano em que o abandono é medido (t+1, base da taxa do
+# INEP). O resíduo é (alunos que realmente abandonaram) − (alunos previstos),
+# com predições FORA DA AMOSTRA (validação cruzada agrupada por município dentro
+# da coorte, mesmo modelo adotado). Um ponto por escola.
+
+LIMITE_EIXO_Y = 45          # foco na maioria; escolas além disso são marcadas
+COR_TRANSICAO = {2022: "#1565C0", 2023: "#C62828"}
+
+
+def _matriculas_ano(ano: int) -> pd.DataFrame:
+    """Matrícula de EM por escola no ano dado (base da taxa de abandono)."""
+    pan = pd.read_parquet(
+        config.INTERIM_DIR / "painel_escola_ano_pe_estadual_em.parquet")
+    sub = pan[pan["NU_ANO_CENSO"] == ano][["CO_ENTIDADE", "QT_MAT_MED"]]
+    return sub.rename(columns={"QT_MAT_MED": "mat_t1"})
+
+
+def residuos_em_alunos(df_ano: pd.DataFrame, ano: int) -> pd.DataFrame:
+    """Predições fora da amostra por escola e resíduo em número de alunos."""
+    X, y, grupos = preparar_xy(df_ano)
+    oof = np.full(len(df_ano), np.nan)
+    for idx_tr, idx_te in GroupKFold(n_splits=5).split(X, y, groups=grupos):
+        modelo = clone(carregar_modelo(MODELO_ADOTADO))
+        modelo.fit(X.iloc[idx_tr], y.iloc[idx_tr])
+        oof[idx_te] = modelo.predict(X.iloc[idx_te])
+
+    d = df_ano[["CO_ENTIDADE", "NO_ENTIDADE", "NO_MUNICIPIO"]].reset_index(drop=True)
+    d["taxa_real"] = y.reset_index(drop=True).to_numpy()
+    d["taxa_prev"] = oof
+    d = d.merge(_matriculas_ano(ano + 1), on="CO_ENTIDADE", how="left")
+    # taxa (%) × matrícula → nº de alunos
+    d["alunos_real"] = d["taxa_real"] / 100.0 * d["mat_t1"]
+    d["alunos_prev"] = d["taxa_prev"] / 100.0 * d["mat_t1"]
+    d["residuo_alunos"] = d["alunos_real"] - d["alunos_prev"]
+    return d
+
+
+def _painel_residuos(ax, d: pd.DataFrame, ano: int) -> None:
+    res = d["residuo_alunos"].to_numpy()
+    n = len(res)
+    x = np.arange(1, n + 1)
+    mae = np.abs(res).mean()
+    cor = COR_TRANSICAO[ano]
+
+    dentro = np.abs(res) <= LIMITE_EIXO_Y
+    ax.scatter(x[dentro], res[dentro], s=12, alpha=0.55, color=cor,
+               edgecolors="none")
+    # escolas fora da faixa: marcadas na borda (triângulos)
+    acima = res > LIMITE_EIXO_Y
+    abaixo = res < -LIMITE_EIXO_Y
+    ax.scatter(x[acima], np.full(acima.sum(), LIMITE_EIXO_Y), marker="^",
+               s=28, color=cor, edgecolors="black", linewidths=0.4, zorder=5)
+    ax.scatter(x[abaixo], np.full(abaixo.sum(), -LIMITE_EIXO_Y), marker="v",
+               s=28, color=cor, edgecolors="black", linewidths=0.4, zorder=5)
+
+    ax.axhline(0, color="black", lw=1.2)
+    ax.axhline(mae, color="#616161", ls="--", lw=1.3)
+    ax.axhline(-mae, color="#616161", ls="--", lw=1.3)
+    ax.text(n * 0.99, mae + 1.5, f"MAE = {mae:.1f} alunos", ha="right",
+            va="bottom", fontsize=9, color="#424242")
+
+    ax.set_ylim(-LIMITE_EIXO_Y - 5, LIMITE_EIXO_Y + 5)
+    ax.set_xlim(0, n + 1)
+    ax.set_xlabel(f"Escolas (1, 2, 3, …, {n})")
+    ax.set_ylabel("Resíduo — alunos que abandonaram o EM\n(real − previsto)")
+    ax.set_title(f"{ano} – {ano + 1}", fontsize=12, fontweight="bold")
+    ax.grid(axis="y", alpha=0.3)
+
+    fora = int(acima.sum() + abaixo.sum())
+    if fora:
+        ax.text(n * 0.99, -LIMITE_EIXO_Y - 1,
+                f"{fora} escola(s) além de ±{LIMITE_EIXO_Y} alunos (nos triângulos)",
+                ha="right", va="top", fontsize=8, color="#757575")
+
+
+def figura_residuos_transicoes(df: pd.DataFrame) -> None:
+    sep("RESÍDUOS EM NÚMERO DE ALUNOS POR TRANSIÇÃO (orientador)")
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5.4), sharey=True)
+    registros = []
+    for ax, ano in zip(axes, CENARIOS):
+        d = residuos_em_alunos(df[df[ANO_COL] == ano].copy(), ano)
+        _painel_residuos(ax, d, ano)
+        mae = d["residuo_alunos"].abs().mean()
+        vies = d["residuo_alunos"].mean()
+        print(f"  {ano}–{ano+1}: {len(d)} escolas | MAE={mae:.2f} alunos | "
+              f"viés médio={vies:+.2f} | total real={d['alunos_real'].sum():.0f} "
+              f"alunos abandonaram")
+        d.insert(0, "transicao", f"{ano}-{ano+1}")
+        registros.append(d)
+    fig.suptitle("Resíduos do modelo adotado por transição anual — em número de "
+                 "alunos que abandonaram o ensino médio", fontsize=12,
+                 fontweight="bold")
+    fig.tight_layout()
+    salvar_figura(fig, "E10_residuos_transicoes_alunos.png")
+
+    from comum import REPORTS_DIR
+    saida = REPORTS_DIR / "residuos_transicoes_alunos.csv"
+    pd.concat(registros, ignore_index=True).to_csv(saida, index=False)
+    print(f"\nResíduos por escola salvos em: {saida}")
+
+
 def main() -> None:
     sep("SS13 — UM MODELO, DOIS CENÁRIOS TEMPORAIS (2022→2023 e 2023→2024)")
 
@@ -199,6 +308,8 @@ def main() -> None:
     imprimir_quadro(resultados)
     figura_cenarios(resultados)
     persistir(resultados)
+
+    figura_residuos_transicoes(df)
 
     sep("LEITURA")
     print("""

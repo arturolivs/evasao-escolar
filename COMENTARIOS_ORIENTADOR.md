@@ -149,8 +149,8 @@ consolidados na seção [Pendências em aberto](#pendências-em-aberto).
 
 ### 5. Passagem de regeneração de figuras ⚠️
 
-- **Figuras 12, 14 e 15** (desempenho, ganho da lista, acerto por tamanho de lista —
-  numeração atualizada após a inserção do SS13, eram 12/13/14):
+- **Figuras 12, 15 e 16** (desempenho, ganho da lista, acerto por tamanho de lista —
+  numeração atualizada após as inserções do SS13 e da figura de resíduos; eram 12/13/14):
   os PNGs embutidos no `.docx` ainda mostram as curvas **antigas** do XGBoost. Os
   Quadros 9 e 10 já foram atualizados, mas essas figuras não — precisam ser
   regeradas (notebook 07/12) e re-inseridas para bater com as tabelas. Visualmente a
