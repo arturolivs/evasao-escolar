@@ -28,7 +28,13 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.recommend.service import ServicoPriorizacao  # noqa: E402
+from src.recommend.service import (  # noqa: E402
+    LOC_DIFERENCIADA,
+    RESSALVA_DIFERENCIADA_GRUPO,
+    ServicoPriorizacao,
+    ressalva_equidade,
+    ressalva_equidade_curta,
+)
 
 st.set_page_config(
     page_title="Priorização de Risco de Evasão — PE",
@@ -59,6 +65,18 @@ def formatar_ranking(df: pd.DataFrame) -> pd.DataFrame:
         "prioritaria": "Prioritária",
     }
     return df[list(cols)].rename(columns=cols)
+
+
+def exportar_ranking(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ranking para download, com a ressalva de equidade em coluna própria.
+
+    O CSV circula fora do painel — por e-mail, em planilha, impresso. Sem esta
+    coluna a predição chega ao gestor sem o aviso que a tela mostra.
+    """
+    out = formatar_ranking(df)
+    out["Ressalva"] = [ressalva_equidade_curta(loc) or "" for loc in df["localizacao"]]
+    return out
 
 
 # ===========================================================================
@@ -169,7 +187,7 @@ with aba_ranking:
         )
         st.download_button(
             "⬇️ Baixar ranking (CSV)",
-            data=tabela.to_csv(index=False).encode("utf-8-sig"),
+            data=exportar_ranking(ranking).to_csv(index=False).encode("utf-8-sig"),
             file_name=f"ranking_risco_evasao_{ano}.csv",
             mime="text/csv",
         )
@@ -206,6 +224,10 @@ with aba_detalhe:
         else:
             st.info(f"**Diagnóstico:** {diag} "
                     f"(resíduo z = {info['residuo_z']:+.1f})")
+
+        ressalva = ressalva_equidade(info["localizacao"])
+        if ressalva:
+            st.warning(f"⚠️ **Ressalva de equidade** — {ressalva}")
 
         st.subheader("Por que esta escola foi pontuada assim")
         st.caption(
@@ -274,10 +296,15 @@ with aba_panorama:
             },
         )
 
+    if (resumo["localizacao"] == LOC_DIFERENCIADA).any():
+        st.warning(f"⚠️ **Ressalva de equidade** — {RESSALVA_DIFERENCIADA_GRUPO}")
+
     st.caption(
         "Modelo: XGBoost (target √-transformado), validado por GroupKFold por "
         "município e validação temporal 2022→2023 / 2023→2024. As predições "
         "são in-sample neste painel demonstrativo; a estimativa honesta de "
         "desempenho prospectivo consta da validação temporal (Capítulo 6). "
+        "O modelo superestima o risco em escolas indígenas e quilombolas — ver "
+        "a ressalva de equidade acima. "
         "Use o ranking como apoio à priorização, não como decisão automática."
     )

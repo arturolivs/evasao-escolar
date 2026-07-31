@@ -53,6 +53,56 @@ Z_RESILIENTE = -1.0  # abandona bem menos do que o previsto
 # Prefixo das dummies da mesorregião na matriz pós-pré-processamento.
 _PREFIXO_MESO = "CO_MESORREGIAO_"
 
+# Rótulo do grupo em que o modelo é comprovadamente enviesado.
+LOC_DIFERENCIADA = "Diferenciada (indígena/quilombola)"
+
+# Viés medido, não hipotético. Diagnóstico de resíduos do teste temporal
+# (ano-feature 2023, `reports/residuos_grupo_temporal.csv`): nas 41 escolas de
+# localização diferenciada o abandono observado foi 4,96% contra 11,08%
+# previstos — resíduo médio de −6,12 p.p. Urbanas (+0,07) e rurais (+0,38)
+# ficam calibradas. Agrava que `is_loc_diferenciada` é a característica de
+# maior ganho no modelo (0,239), ou seja, a flag do grupo é usada como atalho.
+VIES_DIFERENCIADA = {
+    "escolas": 41,
+    "observado": 4.96,
+    "previsto": 11.08,
+    "residuo_pp": -6.12,
+}
+
+def num_pt(valor: float, casas: int = 1, sinal: bool = False) -> str:
+    """Número no padrão brasileiro (vírgula decimal), para texto de gestor."""
+    fmt = f"{{:{'+' if sinal else ''}.{casas}f}}"
+    return fmt.format(valor).replace(".", ",")
+
+
+_OBSERVADO = num_pt(VIES_DIFERENCIADA["observado"])
+_PREVISTO = num_pt(VIES_DIFERENCIADA["previsto"])
+_RESIDUO = num_pt(VIES_DIFERENCIADA["residuo_pp"], casas=2, sinal=True)
+_N_ESCOLAS = VIES_DIFERENCIADA["escolas"]
+
+RESSALVA_DIFERENCIADA_ESCOLA = (
+    "Escola de localização diferenciada (indígena/quilombola). Neste grupo o "
+    f"modelo **superestima** o risco: no diagnóstico temporal, as {_N_ESCOLAS} "
+    f"escolas do grupo tiveram {_OBSERVADO}% de abandono observado contra "
+    f"{_PREVISTO}% previstos ({_RESIDUO} p.p.). Leia o valor como sinal de "
+    "atenção, não como magnitude confiável, e confirme a situação com a rede "
+    "antes de decidir."
+)
+
+RESSALVA_DIFERENCIADA_CURTA = (
+    f"Risco superestimado em ~{abs(VIES_DIFERENCIADA['residuo_pp']):.0f} p.p. neste "
+    "grupo (indígena/quilombola) — usar como sinal de atenção, não como magnitude"
+)
+
+RESSALVA_DIFERENCIADA_GRUPO = (
+    "O risco médio mais alto das escolas de localização diferenciada "
+    "(indígena/quilombola) está **inflado pelo modelo**: no diagnóstico "
+    f"temporal o grupo apresentou {_OBSERVADO}% de abandono observado contra "
+    f"{_PREVISTO}% previstos ({_RESIDUO} p.p. em {_N_ESCOLAS} escolas), "
+    "enquanto urbanas e rurais ficam calibradas. A diferença entre os grupos "
+    "neste gráfico é maior do que a diferença real."
+)
+
 
 def _grupo_meso(nome_transformado: str) -> str:
     """Mapeia uma coluna pós-transformação para o indicador de origem,
@@ -65,8 +115,33 @@ def _grupo_meso(nome_transformado: str) -> str:
 def _rotulo_localizacao(row: pd.Series) -> str:
     """Rótulo de localização por escola (precedência diferenciada > rural)."""
     if row.get("is_loc_diferenciada", 0) == 1:
-        return "Diferenciada (indígena/quilombola)"
+        return LOC_DIFERENCIADA
     return "Rural" if row.get("is_rural", 0) == 1 else "Urbana"
+
+
+def ressalva_equidade(localizacao: str | None) -> str | None:
+    """
+    Ressalva de viés a exibir junto de uma predição, conforme o grupo da escola.
+
+    Devolve `None` quando não há viés conhecido para o grupo. A UI só decide se
+    exibe o texto; a regra de quando ele se aplica vive aqui, testável sem
+    Streamlit.
+    """
+    if localizacao == LOC_DIFERENCIADA:
+        return RESSALVA_DIFERENCIADA_ESCOLA
+    return None
+
+
+def ressalva_equidade_curta(localizacao: str | None) -> str | None:
+    """
+    Versão de uma linha da ressalva, para caber em célula de planilha.
+
+    Existe porque o ranking exportado circula fora do painel: sem esta coluna, a
+    predição chega ao gestor sem o aviso que a tela exibe.
+    """
+    if localizacao == LOC_DIFERENCIADA:
+        return RESSALVA_DIFERENCIADA_CURTA
+    return None
 
 
 def _diagnostico(z: float) -> str:

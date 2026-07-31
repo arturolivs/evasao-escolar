@@ -9,6 +9,8 @@ Riscos centrais:
   5. Explicação local vazando as dummies da mesorregião em vez de
      agregá-las num único fator, ou sinal de direção trocado.
   6. Diagnóstico (alerta/resiliente) com o sinal do resíduo invertido.
+  7. Predição de escola indígena/quilombola exibida sem a ressalva de viés —
+     o grupo em que o modelo superestima o risco em ~6 p.p.
 
 Os testes constroem o serviço sobre um XGBoost ajustado a um dataset
 sintético — sem depender do modelo serializado nem do features.parquet.
@@ -23,7 +25,14 @@ import pytest
 
 from src.models.train import aplicar_transformacao_target, criar_xgboost, preparar_xy
 from src.recommend.labels import rotular_feature, rotular_mesorregiao
-from src.recommend.service import ServicoPriorizacao
+from src.recommend.service import (
+    LOC_DIFERENCIADA,
+    VIES_DIFERENCIADA,
+    ServicoPriorizacao,
+    num_pt,
+    ressalva_equidade,
+    ressalva_equidade_curta,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +186,74 @@ def test_resumo_por_grupo_cobre_todas_escolas(servico):
     total = servico.ranking(ano=2023)
     assert resumo["escolas"].sum() == len(total)
     assert {"localizacao", "risco_medio", "alertas"}.issubset(resumo.columns)
+
+
+# ---------------------------------------------------------------------------
+# Ressalva de equidade
+#
+# Risco: o gestor vê o rótulo do grupo e a posição no ranking sem saber que a
+# predição para escolas indígenas/quilombolas é inflada em ~6 p.p. — o viés
+# está medido em reports/residuos_grupo_temporal.csv.
+# ---------------------------------------------------------------------------
+
+def test_ressalva_equidade_para_localizacao_diferenciada():
+    texto = ressalva_equidade(LOC_DIFERENCIADA)
+    assert texto is not None
+    assert "superestima" in texto
+
+
+@pytest.mark.parametrize("grupo", ["Urbana", "Rural", None, "", "Outra coisa"])
+def test_ressalva_equidade_ausente_nos_demais_grupos(grupo):
+    """Só o grupo com viés medido recebe ressalva — nada de aviso genérico."""
+    assert ressalva_equidade(grupo) is None
+
+
+def test_ressalva_cita_os_numeros_do_diagnostico():
+    """Os valores do texto vêm da constante, não digitados à mão na UI."""
+    texto = ressalva_equidade(LOC_DIFERENCIADA)
+    assert f"{num_pt(VIES_DIFERENCIADA['observado'])}%" in texto
+    assert f"{num_pt(VIES_DIFERENCIADA['previsto'])}%" in texto
+    assert VIES_DIFERENCIADA["residuo_pp"] < 0, "o viés é de superestimação"
+
+
+@pytest.mark.parametrize("valor,casas,sinal,esperado", [
+    (4.96, 1, False, "5,0"),
+    (11.08, 1, False, "11,1"),
+    (-6.12, 2, True, "-6,12"),
+    (0.38, 2, True, "+0,38"),
+])
+def test_num_pt_usa_virgula_decimal(valor, casas, sinal, esperado):
+    """Painel é PT-BR: número de gestor não sai com ponto decimal."""
+    assert num_pt(valor, casas=casas, sinal=sinal) == esperado
+
+
+def test_ressalva_curta_cabe_em_celula_de_planilha():
+    """O CSV circula fora do painel: a ressalva tem de viajar junto e ser curta."""
+    curta = ressalva_equidade_curta(LOC_DIFERENCIADA)
+    assert curta is not None
+    assert len(curta) < 160, "não cabe em coluna de planilha"
+    assert "superestimado" in curta
+    assert "\n" not in curta, "quebra de linha corrompe o CSV"
+
+
+@pytest.mark.parametrize("grupo", ["Urbana", "Rural", None, "Outra coisa"])
+def test_ressalva_curta_ausente_nos_grupos_calibrados(grupo):
+    assert ressalva_equidade_curta(grupo) is None
+
+
+def test_ressalva_curta_e_longa_concordam_no_grupo():
+    """As duas versões têm de acender exatamente para o mesmo grupo."""
+    for g in (LOC_DIFERENCIADA, "Urbana", "Rural", None):
+        assert (ressalva_equidade(g) is None) == (ressalva_equidade_curta(g) is None)
+
+
+def test_escolas_diferenciadas_do_resumo_tem_ressalva(servico):
+    """Se o grupo aparece no panorama, a ressalva se aplica a ele."""
+    resumo = servico.resumo_por_grupo(2023)
+    grupos = set(resumo["localizacao"])
+    assert LOC_DIFERENCIADA in grupos, "fixture deve conter escolas diferenciadas"
+    com_ressalva = {g for g in grupos if ressalva_equidade(g)}
+    assert com_ressalva == {LOC_DIFERENCIADA}
 
 
 # ---------------------------------------------------------------------------
