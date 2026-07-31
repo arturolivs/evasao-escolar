@@ -27,7 +27,7 @@ monografia/
 ├── evasao-escolar/          # o sistema (pacote src/, testes, dados, relatórios)
 │   ├── src/                 # código de produção
 │   ├── notebooks/           # scripts de análise numerados 01..15 (não .ipynb)
-│   ├── tests/               # 132 testes pytest
+│   ├── tests/               # 138 testes pytest
 │   ├── data/                # raw/ interim/ processed/  (fora do Git)
 │   ├── models/              # *.joblib (fora do Git)
 │   ├── reports/             # métricas .csv + figuras/ (72 PNGs)
@@ -61,7 +61,7 @@ pip install -r requirements.txt
 
 ### Testes
 ```bash
-pytest              # 132 testes, ~15 s
+pytest              # 138 testes, ~25 s
 pytest tests/test_build_target.py           # casamento temporal t→t+1
 pytest tests/test_models.py                 # vazamento espacial entre folds
 pytest tests/test_explain.py                # aditividade SHAP
@@ -118,6 +118,9 @@ Fluxo estritamente unidirecional, sem ciclos: `data` → `features` → `models`
 - Nunca dividir o mesmo município entre treino e teste — `GroupKFold(groups=CO_MUNICIPIO)`.
   `CO_MUNICIPIO` está em `ID_COLS`, logo fora das features.
 - Imputação sempre por **mesorregião × mesmo ano**, nunca com informação de anos futuros.
+  O fallback de média global em `build_features.py:193` foi medido em 31/07 e **nunca
+  dispara** — todo grupo mesorregião×ano tem ao menos um valor observado. Se um dado novo
+  do INEP mudar isso, o caminho passa a agrupar anos: reconferir com `/revisar-projeto`.
 
 ### 2. Ambiente fixado — condição para regerar qualquer número
 O `requirements.txt` fixa tudo com `==` por um motivo já custeado: **a partição do
@@ -165,8 +168,9 @@ que 2023→2024 (0,367 / 0,381), acompanhando a queda do abandono médio (1,36% 
 ### 5. Qualidade de código
 - Acoplamento fraco: troca entre etapas por `.parquet` em `data/interim/` e `data/processed/`.
 - Regra de negócio fora do Streamlit, testada por `pytest` sem tocar a interface.
-- Verificação forte de reprodutibilidade já disponível: `features.parquet` é
-  bit-idêntico ao regerado pelo código atual (diferença numérica máxima 0,0).
+- Verificação forte de reprodutibilidade: `features.parquet` foi regerado em 31/07 e saiu
+  **bit-idêntico** — mesmo tamanho, 0 células alteradas, rastreabilidade igual. O pipeline
+  de características é determinístico.
 
 ---
 

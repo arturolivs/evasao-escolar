@@ -25,15 +25,15 @@ características, quadros descritivos, métricas, SS13, resíduos, equidade, SHA
 resumo final no formato:
 
 ```
-RESUMO: 121 conferidos OK · 0 divergencia(s) · 0 sem fonte automatica
+RESUMO: 127 conferidos OK · 0 divergencia(s) · 0 sem fonte automatica
 ```
 
-**Última execução verificada: 121 OK, 0 divergências, 0 sem fonte.**
+**Última execução verificada: 127 OK, 0 divergências, 0 sem fonte.**
 
 Complementar com a suíte, que trava as invariantes que a varredura não cobre:
 
 ```bash
-pytest -q          # 132 testes
+pytest -q          # 138 testes
 ```
 
 ## Como ler a saída
@@ -60,18 +60,21 @@ Não "corrigir o texto para bater". A ordem é:
 
 Pontos que o script **imprime mas não trava** — conferir a olho:
 
-- **Bloco 9 (ordem dos fatores SHAP).** O script imprime o top-6 de
-  `reports/shap_importancia.csv` e o parágrafo do texto, **sem assertar** — conferir a olho a
-  cada retreino. Ordem real hoje: `abnd_s2_t` (0,333), `tdi_med_t` (0,201), `abnd_t` (0,152),
-  `abnd_s1_t` (0,127), `is_loc_diferenciada` (0,113), `reprov_t` (0,098). O `inse_media` é o
-  **13º** (0,042).
-  > Divergência encontrada e **corrigida** neste ponto: o ¶476 citava o "nível socioeconômico"
-  > entre os principais fatores e omitia `is_loc_diferenciada`. Provável resíduo de uma rodada
-  > de SHAP anterior, em que o INSE era de fato 4º. Backup `TCC_ANTES_TESTES_E_SHAP.docx`.
-  > Lição: como o bloco não trava, um retreino pode reintroduzir a divergência em silêncio.
+- **Bloco 9 (ordem dos fatores SHAP).** ✅ **Deixou de ser só informativo em 31/07.** Agora
+  trava três coisas: que os **dois primeiros** do `shap_importancia.csv` estejam nomeados no
+  parágrafo pelos rótulos de gestor, que o **nível socioeconômico não** apareça entre os
+  principais (ele é o 13º, 0,042), e que a âncora do parágrafo ainda exista. Ordem real hoje:
+  `abnd_s2_t` (0,333), `tdi_med_t` (0,201), `abnd_t` (0,152), `abnd_s1_t` (0,127),
+  `is_loc_diferenciada` (0,113), `reprov_t` (0,098).
+  > **Duas falhas reais deste bloco, ambas corrigidas.** (1) O texto citava o "nível
+  > socioeconômico" entre os principais fatores — resíduo de uma rodada de SHAP anterior em que
+  > o INSE era 4º. (2) O localizador usava `find("ela mostra")`, e quando o parágrafo foi
+  > reescrito para "ela ordena" o `-1` passou a fatiar em silêncio: o bloco imprimia texto
+  > vazio e ninguém notava. As asserções novas pegam as duas — verificado simulando a redação
+  > antiga, que acende `top «abnd_s2_t» ausente` e `INSE citado, sendo o 13º`.
 - **Bloco 10 (contagem de testes).** Delegado ao `pytest` rodado em separado — este bloco
-  **não** compara nada. O `.docx` diz "132 testes" em 4 pontos (¶332, ¶380, ¶501, ¶514) e o
-  `pytest` confirma 132. Todo teste novo obriga a atualizar esses 4 pontos. Atenção:
+  **não** compara nada. O `.docx` diz "138 testes" em 4 pontos (¶330, ¶378, ¶510, ¶523) e o
+  `pytest` confirma 138. Todo teste novo obriga a atualizar esses 4 pontos. Atenção:
   `PLANO_DE_FINALIZACAO.md`, `SS1_TEXTO_PARA_O_TCC.md` e `SS12_TEXTO_PARA_O_TCC.md` falam de
   114, 108 e 104 — são registros históricos de cada rodada, não erros.
 - **Alvo fixo por caminho absoluto.** As constantes `RAIZ` e `DOC` no topo do script trazem

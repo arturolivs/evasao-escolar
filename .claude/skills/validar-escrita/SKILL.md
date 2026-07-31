@@ -39,24 +39,30 @@ Rodado no documento atual. Use para detectar regressão.
 
 | Bloco | Resultado |
 |---|---|
-| **1. Ritmo** | 150 parágrafos · 478 frases · 22,2 palavras/frase (dp 13,1) · variação **0,59** |
-| **2. Sintaxe PT-BR** | **0 ocorrências** em 11 regras · voz passiva 11% (voz ativa predominante) |
-| **3. Clareza** | nominalizações **4,4%** (bom) · **0 candidatos a troca de jargão** · 10 frases com «que» encadeado |
+| **1. Ritmo** | 157 parágrafos · 505 frases · 21,4 palavras/frase (dp 11,9) · variação **0,56** |
+| **2. Sintaxe PT-BR** | **0 ocorrências** em 11 regras · voz passiva 10% (voz ativa predominante) |
+| **3. Clareza** | nominalizações **4,4%** (bom) · **0 candidatos a troca de jargão** · 9 frases com «que» encadeado |
 | **4. ABNT** | margens = modelo PUC-SP · 24 referências (todas com PDF) · **0 órfãs, 0 não citadas** · ordem alfabética ok |
 | **5. Marcadores de IA** | **0 indícios** em 8 medidas |
 
 Pontos abertos que a linha de base registra:
 
-- **50 frases com ≥ 40 palavras (10,5%)**, sendo 8 acima de 55. As maiores: ¶179 (71),
-  ¶352 (68), ¶285 (64), ¶452 (61), ¶461 (61). O ¶179 é o Resumo, gênero de frase densa;
-  o ¶352 é a cadeia de ponto-e-vírgula que imita a sequência do pipeline — ambos
-  deliberados, não defeitos.
-- **Jargão: zerado.** «boosting» solto (¶285, ¶288) passou a "gradiente impulsionado" e
-  «ranking» (¶332) a "lista devolvida". Seguem legítimos, e contados como tal, a glosa
-  «gradiente impulsionado (gradient boosting)» em ¶283 e o identificador `src.features`.
-- **10 frases com 3+ «que»**, hoje no máximo 4× (¶256, ¶498, ¶510).
-- O parágrafo-glossário de 245 palavras (antigo ¶398) virou cinco parágrafos de 44, 37,
-  61, 67 e 32 palavras — ¶398 a ¶402.
+- **39 frases com ≥ 40 palavras (7,7%)** — eram 10,8% antes da passagem de concisão de
+  31/07, que quebrou as frases de 45 a 73 palavras em 11 parágrafos. Restam 6 acima de 55,
+  todas deliberadas:
+  - **¶350** (68) — cadeia de ponto-e-vírgula que imita a sequência do pipeline;
+  - **¶256** (55) — enunciado do objetivo geral, que a ABNT trata como período único;
+  - **¶440** (55) — o empate estatístico entre os modelos, em que separar as ressalvas em
+    frases distintas transformaria cada uma em afirmação isolada;
+  - **¶459**, **¶330**, **¶520** — enumerações cujo corte prejudicaria a precisão.
+
+  Não "corrigir" essas seis por reflexo numa passagem futura.
+- **Jargão: zerado.** «boosting» solto passou a "gradiente impulsionado" e «ranking» a
+  "lista devolvida". Seguem legítimos, e contados como tal, a glosa «gradiente impulsionado
+  (gradient boosting)» e o identificador `src.features`.
+- **9 frases com 3+ «que»**, no máximo 4× (¶254, ¶507, ¶519).
+- **3 parágrafos com mais de 8 frases**: ¶179 (Resumo, 13), ¶401 (guia de leitura do quadro
+  de estatísticas, 11) e ¶474 (SHAP, 9). Os três são listas explicativas, não prolixidade.
 
 ## Como os blocos funcionam
 
@@ -135,7 +141,7 @@ Todas valem também para texto escrito à mão que ficou burocrático.
    150 escolas, contra 19% ao acaso». O adjetivo é opinião; o número é resultado.
 5. **Desfazer o tricolon automático.** Listas de três adjetivos («complexo, multifacetado
    e desafiador») quase sempre têm um termo que não acrescenta nada. Fique com um.
-6. **Nomear o agente.** «Foram realizados testes» → «a suíte roda 132 testes». Voz ativa
+6. **Nomear o agente.** «Foram realizados testes» → «a suíte roda 138 testes». Voz ativa
    diz quem fez o quê e encurta a frase.
 7. **Ler em voz alta.** O item 5.3 do `PLANO_DE_FINALIZACAO.md` já pede isso, e continua
    sendo o filtro que pega o que nenhuma métrica pega: onde você tropeça, o leitor também.

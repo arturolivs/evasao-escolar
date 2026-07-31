@@ -21,11 +21,11 @@ Use para detectar regressão. Achados que **permanecem abertos** estão marcados
 |---|---|
 | 1. Casamento temporal | ✅ `features.parquet` só tem 2022 e 2023; 2024 só em predição |
 | 2. Vazamento espacial | ✅ `GroupKFold` por `CO_MUNICIPIO`, disjunção travada por teste |
-| 3. Features | ⚠️ 39 confirmadas, 0 NaN, nenhuma de vazamento — **ressalva:** fallback de média global em `build_features.py:193` agrupa 2022+2023 |
+| 3. Features | ✅ 39 confirmadas, 0 NaN, nenhuma de vazamento — o fallback de média global de `build_features.py:193` **nunca dispara** (medido) |
 | 4. Métricas | ⚠️ funciona como ranking, **não** como regressão: RMSE 2,874 > dummy 2,540, R² −0,33 |
 | 5. SHAP | ✅ aditividade travada — nota: ordem SHAP ≠ ordem por ganho |
 | 6. Equidade | ✅ viés de −6,12 p.p. medido **e** exibido no painel (`ressalva_equidade`) |
-| 7. Arquitetura | ✅ 132 testes, sem ciclos, `features.parquet` bit-reproduzível |
+| 7. Arquitetura | ✅ 138 testes, sem ciclos, `features.parquet` regerado em 31/07 e bit-idêntico |
 
 ## Checklist de Revisão (7 Pilares)
 
@@ -41,9 +41,42 @@ Use para detectar regressão. Achados que **permanecem abertos** estão marcados
 
 ### 3. Engenharia de Features (39 Características)
 - [ ] Verificar se imputações de dados faltantes usam a média regional do mesmo ano, sem informação do futuro.
+- [ ] Confirmar que o fallback de média global **continua sem disparar** (ver bloco abaixo).
 - [ ] Confirmar que variáveis redundantes ou com vazamento de resposta (ex.: taxa de aprovação do próprio t+1) foram descartadas.
 - [ ] Checar o tratamento de escolas não seriadas (EJA/módulos) no cálculo do TDI e das taxas por série: `pytest tests/test_nao_seriado.py`.
 - [ ] Conferir a rastreabilidade da amostra: `reports/rastreabilidade_amostra.csv` e `pytest tests/test_rastreabilidade_amostra.py`.
+
+>  ✅ **Ressalva fechada em 31/07.** `_imputar_por_meso` agrupa por
+> `["CO_MESORREGIAO", "NU_ANO_CENSO"]` nas três chamadas, mas tem um fallback de **média
+> global** (linha 193) que agruparia 2022+2023 — vazamento transdutivo em potencial.
+> Instrumentei a função e contei quantos valores cairiam nele: **zero**. Todo grupo
+> mesorregião×ano tem ao menos um valor observado, então o caminho existe no código e nunca
+> é percorrido com os dados atuais.
+>
+> Vale para **estes** dados. Se uma edição futura do INEP trouxer indicador ausente em toda
+> uma mesorregião num ano, o fallback passa a disparar e o problema deixa de ser teórico.
+> Reconferir com:
+> ```bash
+> python - <<'PY'
+> import logging; logging.disable(logging.INFO)
+> import src.features.build_features as bf
+> disparos = []
+> orig = bf._imputar_por_meso
+> def espiao(df, cols, group_cols):
+>     for c in cols:
+>         if c not in df.columns: continue
+>         medias = df.groupby(group_cols)[c].transform("mean")
+>         n = int((df[c].isna() & medias.isna()).sum())
+>         if n: disparos.append((c, n))
+>     return orig(df, cols, group_cols)
+> bf._imputar_por_meso = espiao
+> bf.construir_dataset()
+> print(disparos or "fallback global nunca disparou")
+> PY
+> ```
+> Blindagem opcional de uma linha, caso queira eliminar o risco futuro: trocar a média
+> global por média **por ano** (`df.groupby("NU_ANO_CENSO")[col].transform("mean")`).
+> Preserva o comportamento atual e fecha o caminho.
 
 ### 4. Desempenho do Modelo e Métricas de Priorização
 - [ ] Avaliar `Precision@K` (Top 10% / Top 150 escolas) em `reports/metricas_xgboost.csv`.
@@ -96,13 +129,16 @@ o modelo usa a flag do grupo como atalho preditivo.
 > grep -c -E "ressalva_equidade|RESSALVA_DIFERENCIADA" app/dashboard.py   # espera-se >= 2
 > pytest tests/test_recommend.py -q -k ressalva
 > ```
-> **Lacuna remanescente:** o CSV baixado na aba de ranking sai sem a ressalva — a predição
-> circula fora do painel sem o contexto. Decisão pendente do autor.
+> **Fechado também no CSV** (30/07): `exportar_ranking()` acrescenta a coluna «Ressalva»,
+> preenchida por `service.ressalva_equidade_curta()`. A predição não circula mais fora do
+> painel sem o contexto — 41 das 789 linhas do ranking de 2023 saem com o aviso.
 
 ### 7. Qualidade de Software e Arquitetura
-- [ ] Executar a suíte completa: `pytest` (132 testes na última verificação).
+- [ ] Executar a suíte completa: `pytest` (138 testes na última verificação).
 - [ ] Verificar dependências cíclicas entre `src.data`, `src.features`, `src.models` e `src.recommend` (o fluxo é unidirecional nessa ordem).
 - [ ] Garantir que os `.parquet` de `data/interim/` e `data/processed/` estejam mais novos que os `.joblib` de `models/` — modelo treinado em features velhas é erro silencioso.
+  Satisfeito desde 31/07: `features.parquet` foi regerado (155.894 bytes, 0 células
+  alteradas, rastreabilidade idêntica) e agora é mais recente que `xgboost_v1.joblib`.
 
 ---
 

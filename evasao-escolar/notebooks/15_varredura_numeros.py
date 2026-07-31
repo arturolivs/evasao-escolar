@@ -393,12 +393,50 @@ checa("¶505 desvio maximo (P3)", 23.69, float(rdiag[col_r].max()), tol=0.01,
 
 print()
 print("=" * 78)
-print("9. SHAP: ordem dos fatores citada no ¶471")
+print("9. SHAP: ordem dos fatores citada no texto")
 print("=" * 78)
 top6 = list(shap_imp.head(6)["feature"])
 print("   top-6 no CSV:", top6)
-texto467 = next(p for p in PARS if "o melhor previsor do tempo de amanhã" in p)
-print("   texto: ...", texto467[texto467.find("ela mostra"):][:230])
+
+par_shap = next(p for p in PARS if "o melhor previsor do tempo de amanhã" in p)
+ini = par_shap.find("Aplicada a todo o conjunto")
+if ini < 0:
+    res["div"].append(("ancora do paragrafo SHAP", "presente", "AUSENTE", "nb15"))
+    print("  XX ancora 'Aplicada a todo o conjunto' sumiu do paragrafo — "
+          "atualizar este bloco antes de confiar nele")
+else:
+    print("   texto: ...", par_shap[ini:][:260])
+
+# O bloco deixou de ser so informativo. Estas checagens travam a divergencia
+# que ja aconteceu uma vez: o texto citava o INSE entre os principais fatores
+# quando ele e o 13o. Os dois primeiros do CSV tem de estar nomeados, e o
+# termo do erro anterior nao pode reaparecer.
+ROTULO = {
+    "abnd_s2_t": "2ª série",
+    "tdi_med_t": "defasagem idade-série",
+    "abnd_t": "Ensino Médio",
+    "abnd_s1_t": "1ª série",
+    "is_loc_diferenciada": "localização diferenciada",
+    "reprov_t": "reprovação",
+}
+for feat in top6[:2]:
+    termo = ROTULO.get(feat)
+    if termo is None:
+        continue
+    if termo.lower() in par_shap.lower():
+        res["ok"] += 1
+        print(f"  ok top-{top6.index(feat)+1} «{feat}» citado como «{termo}»")
+    else:
+        res["div"].append((f"top-{top6.index(feat)+1} do SHAP", termo, "ausente no texto", "shap_importancia"))
+        print(f"  XX top-{top6.index(feat)+1} «{feat}» ({termo}) NAO aparece no paragrafo")
+
+pos_inse = list(shap_imp["feature"]).index("inse_media") + 1
+if "socioecon" in par_shap.lower():
+    res["div"].append(("INSE citado entre os principais", f"e o {pos_inse}o", "citado", "shap_importancia"))
+    print(f"  XX o paragrafo cita o nivel socioeconomico, que e o {pos_inse}o no SHAP")
+else:
+    res["ok"] += 1
+    print(f"  ok nivel socioeconomico ({pos_inse}o no SHAP) nao e citado entre os principais")
 
 print()
 print("=" * 78)

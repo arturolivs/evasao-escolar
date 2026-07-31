@@ -66,7 +66,7 @@ Rodado com o documento atual — use como referência para detectar regressão:
 | "informações" (plural) | 0 | ✅ |
 | "informação" | 4 — todas legítimas, sentido comum (¶305, ¶313, ¶341, ¶433) | ✅ |
 | "feature(s)" | 3 — *abstract* em inglês, título da referência Guyon & Elisseeff, caminho `src/features` | ✅ |
-| "N testes" | `{"132 testes"}`, 4 ocorrências (¶332, ¶380, ¶501, ¶514), confere com o `pytest` | ✅ |
+| "N testes" | `{"138 testes"}`, 4 ocorrências (¶332, ¶380, ¶501, ¶514), confere com o `pytest` | ✅ |
 | Orientador na folha de rosto | "sob a orientação do prof. Silvio Luiz Stanzani" | ✅ presente |
 | Ficha catalográfica | placeholder ainda presente | ⏳ **depende do autor** |
 | Banca | 55 linhas `___` | ⏳ **depende do autor** |
