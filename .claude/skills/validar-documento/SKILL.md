@@ -10,8 +10,9 @@ Confere a **estrutura e a edição** do `.docx`. Para os valores numéricos, use
 
 ## Documento alvo
 
-`documentos/TCC_Evasao_Escolar.docx` — 591 parágrafos, 12 tabelas. É o único documento
-canônico e o mesmo alvo do notebook 15 (varredura de números).
+`documentos/monografia-artur-oliveira-engenharia-de-software-2026.docx` — 590 parágrafos,
+12 tabelas. É o único documento canônico e o mesmo alvo do notebook 15 (varredura de
+números). Renomeado em 31/07/2026; antes chamava-se `TCC_Evasao_Escolar.docx`.
 
 Os `TCC_ANTES_*.docx` em `documentos/` são backups por rodada de edição: servem para
 comparar ou restaurar, **nunca** para validar nem editar.
@@ -26,7 +27,7 @@ import io, re, sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 from docx import Document
 
-DOC = "documentos/TCC_Evasao_Escolar.docx"   # confirmar o canônico
+DOC = "documentos/monografia-artur-oliveira-engenharia-de-software-2026.docx"
 d = Document(DOC)
 pars = [p.text for p in d.paragraphs]
 txt = "\n".join(pars)
@@ -64,12 +65,19 @@ Rodado com o documento atual — use como referência para detectar regressão:
 | Quadros | 1–11, sem lacunas | ✅ |
 | Tabelas no arquivo | 12 (11 quadros + 1 pré-textual) | ✅ |
 | "informações" (plural) | 0 | ✅ |
-| "informação" | 4 — todas legítimas, sentido comum (¶305, ¶313, ¶341, ¶433) | ✅ |
-| "feature(s)" | 3 — *abstract* em inglês, título da referência Guyon & Elisseeff, caminho `src/features` | ✅ |
-| "N testes" | `{"138 testes"}`, 4 ocorrências (¶332, ¶380, ¶501, ¶514), confere com o `pytest` | ✅ |
+| "informação" | 4 — todas legítimas, sentido comum (¶282, ¶290, ¶318, ¶410) | ✅ |
+| "feature(s)" | 2 — caminho `src.features` (¶346), título da referência Guyon & Elisseeff (¶530) | ✅ |
+| "N testes" | `{"138 testes"}`, 4 ocorrências (¶309, ¶357, ¶491, ¶504), confere com o `pytest` | ✅ |
 | Orientador na folha de rosto | "sob a orientação do prof. Silvio Luiz Stanzani" | ✅ presente |
-| Ficha catalográfica | placeholder ainda presente | ⏳ **depende do autor** |
+| Agradecimentos | preenchidos em 31/07/2026 a pedido do autor | ✅ |
+| SS2 — figura/quadro citado antes da legenda | 20 figuras e 11 quadros, 0 problemas | ✅ |
+| Ficha catalográfica | caixa de 12,5 × 7,5 cm no verso da folha de rosto (pág. 3), com aviso marcado em azul+amarelo dentro | ⏳ **depende do autor** |
 | Banca | 55 linhas `___` | ⏳ **depende do autor** |
+| Marcação temporária azul+amarelo | 4 runs — 2 nos agradecimentos, 2 nas aberturas dos Quadros 9 e 10 | ⏳ limpar quando aprovado |
+
+> **Convenção dos ponteiros `¶`**: índice 0-based de `Document(...).paragraphs`, o mesmo que
+> o notebook 15 usa. Recalculados em 31/07/2026 — os valores anteriores estavam defasados em
+> 11 a 20 posições e não serviam para localizar nada.
 
 > `PLANO_DE_FINALIZACAO.md` (24/07) lista o item 2.1 "nome do orientador ausente" como
 > pendente. **Está desatualizado**: o nome está no documento em minúscula (`prof.`), e a

@@ -24,7 +24,8 @@ python .claude/skills/validar-escrita/analisar_escrita.py
 Opções:
 
 ```bash
---doc "documentos/outro.docx"     # outro arquivo (padrão: TCC_Evasao_Escolar.docx)
+--doc "documentos/outro.docx"     # outro arquivo
+                                  # (padrão: monografia-artur-oliveira-engenharia-de-software-2026.docx)
 --bloco ritmo|sintaxe|clareza|abnt|ia    # roda um bloco só
 ```
 
@@ -39,7 +40,7 @@ Rodado no documento atual. Use para detectar regressão.
 
 | Bloco | Resultado |
 |---|---|
-| **1. Ritmo** | 157 parágrafos · 505 frases · 21,4 palavras/frase (dp 11,9) · variação **0,56** |
+| **1. Ritmo** | 157 parágrafos · 503 frases · 21,7 palavras/frase (dp 11,6) · variação **0,54** |
 | **2. Sintaxe PT-BR** | **0 ocorrências** em 11 regras · voz passiva 10% (voz ativa predominante) |
 | **3. Clareza** | nominalizações **4,4%** (bom) · **0 candidatos a troca de jargão** · 9 frases com «que» encadeado |
 | **4. ABNT** | margens = modelo PUC-SP · 24 referências (todas com PDF) · **0 órfãs, 0 não citadas** · ordem alfabética ok |
@@ -47,22 +48,27 @@ Rodado no documento atual. Use para detectar regressão.
 
 Pontos abertos que a linha de base registra:
 
-- **39 frases com ≥ 40 palavras (7,7%)** — eram 10,8% antes da passagem de concisão de
+- **39 frases com ≥ 40 palavras (7,8%)** — eram 10,8% antes da passagem de concisão de
   31/07, que quebrou as frases de 45 a 73 palavras em 11 parágrafos. Restam 6 acima de 55,
   todas deliberadas:
-  - **¶350** (68) — cadeia de ponto-e-vírgula que imita a sequência do pipeline;
-  - **¶256** (55) — enunciado do objetivo geral, que a ABNT trata como período único;
-  - **¶440** (55) — o empate estatístico entre os modelos, em que separar as ressalvas em
+  - **¶329** (68) — cadeia de ponto-e-vírgula que imita a sequência do pipeline;
+  - **¶235** (55) — enunciado do objetivo geral, que a ABNT trata como período único;
+  - **¶420** (55) — o empate estatístico entre os modelos, em que separar as ressalvas em
     frases distintas transformaria cada uma em afirmação isolada;
-  - **¶459**, **¶330**, **¶520** — enumerações cujo corte prejudicaria a precisão.
+  - **¶440** (61), **¶309** (55), **¶501** (55) — enumerações cujo corte prejudicaria a precisão.
 
   Não "corrigir" essas seis por reflexo numa passagem futura.
 - **Jargão: zerado.** «boosting» solto passou a "gradiente impulsionado" e «ranking» a
   "lista devolvida". Seguem legítimos, e contados como tal, a glosa «gradiente impulsionado
   (gradient boosting)» e o identificador `src.features`.
-- **9 frases com 3+ «que»**, no máximo 4× (¶254, ¶507, ¶519).
-- **3 parágrafos com mais de 8 frases**: ¶179 (Resumo, 13), ¶401 (guia de leitura do quadro
-  de estatísticas, 11) e ¶474 (SHAP, 9). Os três são listas explicativas, não prolixidade.
+- **9 frases com 3+ «que»**, no máximo 4× (¶233, ¶488, ¶500). Voltou a 9 depois da reescrita
+  das duas frases dos agradecimentos em 31/07 — que haviam levado o total a 11.
+- **3 parágrafos com mais de 8 frases**: ¶158 (Resumo, 13), ¶380 (guia de leitura do quadro
+  de estatísticas, 11) e ¶455 (SHAP, 9). Os três são listas explicativas, não prolixidade.
+
+> **Convenção dos ponteiros `¶`**: índice 0-based de `Document(...).paragraphs`. Recalculados
+> em 31/07/2026 após a reinserção da ficha catalográfica e as aberturas dos Quadros 9 e 10,
+> que somaram 4 parágrafos ao documento (586 → 590).
 
 ## Como os blocos funcionam
 

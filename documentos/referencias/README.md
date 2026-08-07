@@ -1,6 +1,7 @@
 # Referências bibliográficas do TCC
 
-**24 referências** na lista do `TCC_Evasao_Escolar.docx`, todas citadas em algum ponto do texto
+**24 referências** na lista do `monografia-artur-oliveira-engenharia-de-software-2026.docx`,
+todas citadas em algum ponto do texto
 (nenhuma órfã) e todas com fonte verificada — autores, ano, veículo e páginas conferidos antes de
 entrar no documento.
 

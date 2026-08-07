@@ -33,7 +33,7 @@ monografia/
 │   ├── reports/             # métricas .csv + figuras/ (72 PNGs)
 │   └── requirements.txt     # versões FIXADAS com == (ver Ambiente)
 ├── documentos/              # a monografia e todo o material de escrita
-│   ├── TCC_Evasao_Escolar.docx        # documento principal
+│   ├── monografia-artur-oliveira-engenharia-de-software-2026.docx   # documento principal
 │   ├── TCC_ANTES_*.docx               # backups por rodada de edição
 │   ├── COMENTARIOS_ORIENTADOR.md      # os 13 comentários (SS1..SS13) e status
 │   ├── PLANO_DE_FINALIZACAO.md        # pendências em 5 tiers
@@ -90,6 +90,45 @@ python notebooks/08_tuning_xgboost.py       # → models/xgboost_v1.joblib
 python notebooks/09_shap_diagnostico.py     # SHAP + resíduos
 python -m src.models.predict 2024           # prevê 2025 (ano POSICIONAL, não --year)
 ```
+
+### Reexecução completa — a ordem NÃO é a numérica dos notebooks
+
+O número no nome do arquivo é ordem de criação, não de execução. Reexecutar na ordem
+`01, 02, … 15` **quebra**: `07_avaliacao_complementar.py` carrega
+`models/xgboost_v1.joblib` (via `criar_modelos_vencedores` → `carregar_modelo`), que só
+existe depois do `08_tuning_xgboost.py`. Verificado em 31/07/2026 numa reconstrução do zero,
+que abortou exatamente aí com `FileNotFoundError: Modelo não encontrado`.
+
+Ordem correta, do bruto ao ranking:
+
+```bash
+# 1. ETL — os 7 entry-points acima, em qualquer ordem entre si
+# 2. painel escola×ano
+python notebooks/01_exploracao_inicial.py
+# 3. características
+python -m src.features.build_features
+# 4. descritivas (independentes entre si)
+python notebooks/02_analises_descritivas.py
+python notebooks/03_analises_taxas_rendimento.py
+python notebooks/04_analises_indicadores.py
+python notebooks/05_feature_engineering.py
+python notebooks/11_avaliacao_ied_icg.py
+python notebooks/13_estatisticas_features.py
+# 5. modelagem — 08 ANTES de 07
+python notebooks/06_baseline_modelos.py
+python notebooks/08_tuning_xgboost.py
+python notebooks/07_avaliacao_complementar.py
+# 6. explicação e diagnóstico
+python notebooks/09_shap_diagnostico.py
+python notebooks/14_ss13_cenarios_temporais.py
+# 7. figuras
+python notebooks/10_diagramas_arquitetura.py
+python notebooks/12_figuras_monografia.py
+# 8. predição
+python -m src.models.predict 2024
+```
+
+`15_varredura_numeros.py` roda por último, depois de tudo — é validação, não pipeline.
 
 ### Painel
 ```bash
@@ -176,9 +215,10 @@ que 2023→2024 (0,367 / 0,381), acompanhando a queda do abandono médio (1,36% 
 
 ## Trabalhando na Monografia
 
-- **Documento canônico e único**: `documentos/TCC_Evasao_Escolar.docx` (594 parágrafos,
-  12 tabelas). É o alvo da varredura do notebook 15. Os `TCC_ANTES_*.docx` são backups
-  históricos, nunca alvo de edição.
+- **Documento canônico e único**: `documentos/monografia-artur-oliveira-engenharia-de-software-2026.docx`
+  (590 parágrafos, 12 tabelas). Renomeado em 31/07/2026; antes era `TCC_Evasao_Escolar.docx`.
+  É o alvo da varredura do notebook 15. Os `TCC_ANTES_*.docx` são backups históricos, nunca
+  alvo de edição.
 - **Sempre criar backup** antes de alterar o `.docx`, seguindo a convenção existente:
   `TCC_ANTES_<ASSUNTO>.docx` em `documentos/`.
 - **Estado atual**: 7 capítulos, 20 figuras, 11 quadros, 29 referências (16 com PDF em

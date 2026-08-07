@@ -110,7 +110,7 @@ monografia/
 │   ├── reports/                    # métricas .csv + figuras/ (72 PNGs)
 │   └── requirements.txt
 ├── documentos/                     # a monografia e o material de escrita
-│   ├── TCC_Evasao_Escolar.docx         # documento canônico
+│   ├── monografia-artur-oliveira-engenharia-de-software-2026.docx   # documento canônico
 │   ├── referencias/                    # 21 PDFs + mapa citação → parágrafo
 │   ├── COMENTARIOS_ORIENTADOR.md       # os 13 comentários (SS1–SS13)
 │   └── PLANO_DE_FINALIZACAO.md         # pendências por tier

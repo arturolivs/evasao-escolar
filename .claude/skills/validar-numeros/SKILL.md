@@ -73,15 +73,21 @@ Pontos que o script **imprime mas não trava** — conferir a olho:
   > vazio e ninguém notava. As asserções novas pegam as duas — verificado simulando a redação
   > antiga, que acende `top «abnd_s2_t» ausente` e `INSE citado, sendo o 13º`.
 - **Bloco 10 (contagem de testes).** Delegado ao `pytest` rodado em separado — este bloco
-  **não** compara nada. O `.docx` diz "138 testes" em 4 pontos (¶330, ¶378, ¶510, ¶523) e o
+  **não** compara nada. O `.docx` diz "138 testes" em 4 pontos (¶309, ¶357, ¶491, ¶504) e o
   `pytest` confirma 138. Todo teste novo obriga a atualizar esses 4 pontos. Atenção:
   `PLANO_DE_FINALIZACAO.md`, `SS1_TEXTO_PARA_O_TCC.md` e `SS12_TEXTO_PARA_O_TCC.md` falam de
   114, 108 e 104 — são registros históricos de cada rodada, não erros.
 - **Alvo fixo por caminho absoluto.** As constantes `RAIZ` e `DOC` no topo do script trazem
   caminhos absolutos da máquina do autor, e `DOC` aponta para
-  `documentos/TCC_Evasao_Escolar.docx` — o documento canônico. Se o arquivo for renomeado ou
-  movido, o script quebra com erro claro (não passa em falso). Se um dia surgir uma variante
-  do documento, ela **não** é validada até que `DOC` seja atualizado.
+  `documentos/monografia-artur-oliveira-engenharia-de-software-2026.docx` — o documento
+  canônico. Se o arquivo for renomeado ou movido, o script quebra com erro claro (não passa
+  em falso). Se um dia surgir uma variante do documento, ela **não** é validada até que `DOC`
+  seja atualizado. Já aconteceu uma vez: o arquivo foi renomeado em 31/07/2026 e `DOC`,
+  as skills e o `CLAUDE.md` tiveram de acompanhar.
+- **Ponteiros `¶` na saída.** São rótulos fixos em string, índice 0-based de
+  `Document(...).paragraphs`; o script localiza por busca de texto, nunca por índice, então um
+  rótulo defasado atrapalha quem procura à mão mas não falseia nenhuma checagem. Recalculados
+  em 31/07/2026.
 
 ## Fontes que alimentam a varredura
 

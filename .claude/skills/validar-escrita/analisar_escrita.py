@@ -26,7 +26,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 from docx import Document
 from docx.shared import Cm
 
-DOC_PADRAO = "documentos/TCC_Evasao_Escolar.docx"
+DOC_PADRAO = "documentos/monografia-artur-oliveira-engenharia-de-software-2026.docx"
 
 # Parágrafos que não são texto corrido: não entram nas métricas de escrita.
 ESTILOS_IGNORADOS = {"Caption", "TOC 1", "TOC 2", "TOC 3", "TOC 9", "Title"}

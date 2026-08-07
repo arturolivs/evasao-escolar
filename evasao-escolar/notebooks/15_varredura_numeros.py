@@ -13,7 +13,7 @@ sys.path.insert(0, r"C:\Users\Suporte\Documents\monografia\evasao-escolar")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 RAIZ = r"C:\Users\Suporte\Documents\monografia\evasao-escolar"
-DOC = r"C:\Users\Suporte\Documents\monografia\documentos\TCC_Evasao_Escolar.docx"
+DOC = r"C:\Users\Suporte\Documents\monografia\documentos\monografia-artur-oliveira-engenharia-de-software-2026.docx"
 
 doc = Document(DOC)
 PARS = [p.text for p in doc.paragraphs]
@@ -147,7 +147,7 @@ checa("indice de infraestrutura 2024 — urbana", 0.71,
 
 print()
 print("=" * 78)
-print("4. O ALVO (¶386, ¶387, ¶398)")
+print("4. O ALVO (¶368, ¶369, ¶384)")
 print("=" * 78)
 alvo = feat["taxa_abandono_t1"]
 checa("% observacoes com alvo zero", 68, (alvo == 0).mean() * 100, tol=0.02, fonte="features")
@@ -332,6 +332,34 @@ for row in q10.rows[1:]:
         (res.__setitem__("ok", res["ok"] + 1) if ok
          else res["div"].append((f"Q10 {nome}/{campo}", v, calc, "metricas_xgboost.csv")))
 
+# ¶414, ¶419 e ¶427: sintese "quanto o sistema erra e quanto acerta" (comentario
+# do orientador, ago/2026). Numeros novos no texto exigem fonte nesta varredura.
+xgb_t = tmp[tmp["modelo"] == "xgboost"]
+dum_t = tmp[tmp["modelo"] == "dummy_media"]
+checa("¶414 erro medio no uso real (p.p.)", 2.9, float(xgb_t["rmse"].mean()),
+      tol=0.02, fonte="metricas_xgboost.csv")
+checa("¶414 acertos a cada 10 escolas da lista", 4,
+      float(xgb_t["precision_at_k"].mean()) * 10, tol=0.05, fonte="metricas_xgboost.csv")
+checa("¶414 acertos do acaso a cada 10 (menos de 1)", 0.9,
+      float(dum_t["precision_at_k"].mean()) * 10, tol=0.05, fonte="metricas_baselines.csv")
+checa("¶419 erro medio CV — modelo adotado", 2.6,
+      float(cvrep[cvrep["modelo"] == "xgboost"]["rmse"].mean()), tol=0.02,
+      fonte="metricas_cv_repetida.csv")
+checa("¶419 erro medio CV — media da rede", 3.2,
+      float(cvrep[cvrep["modelo"] == "dummy"]["rmse"].mean()), tol=0.02,
+      fonte="metricas_cv_repetida.csv")
+checa("¶427 erro medio teste temporal — media da rede", 2.5,
+      float(dum_t["rmse"].mean()), tol=0.02, fonte="metricas_baselines.csv")
+k_temporal = int(round(len(coorte24) * 0.10))
+checa("¶427 escolas no topo da lista (K do teste)", 79, k_temporal,
+      fonte="residuos_transicoes_alunos.csv")
+checa("¶427 acertos na lista de 79", 33,
+      float(xgb_t["precision_at_k"].mean()) * k_temporal, tol=0.02,
+      fonte="metricas_xgboost.csv")
+checa("¶427 acertos do acaso na lista de 79", 7,
+      float(dum_t["precision_at_k"].mean()) * k_temporal, tol=0.02,
+      fonte="metricas_baselines.csv")
+
 print()
 print("=" * 78)
 print("7. QUADRO 11 e transicoes anuais (SS13)")
@@ -359,16 +387,16 @@ for row in q11.rows[1:]:
         (res.__setitem__("ok", res["ok"] + 1) if ok
          else res["div"].append((f"Q11 {campo}/{c}", v, calc, "metricas_ss13_cenarios.csv")))
 
-# ¶452: 63% e 38% de acerto na lista; abandono medio 1,36% -> 0,88%
-checa("¶452 acerto da lista 2022→2023", 63, float(g.loc[cen[0], "precision_at_k"]) * 100,
+# ¶436: 63% e 38% de acerto na lista; abandono medio 1,36% -> 0,88%
+checa("¶436 acerto da lista 2022→2023", 63, float(g.loc[cen[0], "precision_at_k"]) * 100,
       tol=0.02, fonte="ss13")
-checa("¶452 acerto da lista 2023→2024", 38, float(g.loc[cen[1], "precision_at_k"]) * 100,
+checa("¶436 acerto da lista 2023→2024", 38, float(g.loc[cen[1], "precision_at_k"]) * 100,
       tol=0.03, fonte="ss13")
-checa("¶452 ROC 2023→2024", 0.81, float(g.loc[cen[1], "roc_auc"]), tol=0.02, fonte="ss13")
+checa("¶436 ROC 2023→2024", 0.81, float(g.loc[cen[1], "roc_auc"]), tol=0.02, fonte="ss13")
 m22 = feat[feat["NU_ANO_CENSO"] == 2022]["taxa_abandono_t1"].mean()
 m23 = feat[feat["NU_ANO_CENSO"] == 2023]["taxa_abandono_t1"].mean()
-checa("¶452 abandono medio da coorte 2023", 1.36, m22, tol=0.02, fonte="features")
-checa("¶452 abandono medio da coorte 2024", 0.88, m23, tol=0.02, fonte="features")
+checa("¶436 abandono medio da coorte 2023", 1.36, m22, tol=0.02, fonte="features")
+checa("¶436 abandono medio da coorte 2024", 0.88, m23, tol=0.02, fonte="features")
 
 print()
 print("=" * 78)
@@ -386,9 +414,9 @@ checa("equidade urbana", 0.07, float(eq["urbana"]), tol=0.02, fonte="residuos_gr
 checa("equidade rural", 0.38, float(eq["rural"]), tol=0.02, fonte="residuos_grupo_temporal.csv")
 
 col_r = "residuo" if "residuo" in rdiag.columns else rdiag.columns[-1]
-checa("¶505 desvio minimo (P3)", -27.87, float(rdiag[col_r].min()), tol=0.01,
+checa("¶500 desvio minimo (P3)", -27.87, float(rdiag[col_r].min()), tol=0.01,
       fonte="residuos_top20_temporal.csv")
-checa("¶505 desvio maximo (P3)", 23.69, float(rdiag[col_r].max()), tol=0.01,
+checa("¶500 desvio maximo (P3)", 23.69, float(rdiag[col_r].max()), tol=0.01,
       fonte="residuos_top20_temporal.csv")
 
 print()
