@@ -3,9 +3,10 @@
 Fonte: `TCC_Evasao_Escolar_comentários.pdf` (autor dos comentários: SS)
 Extraídos em 22/07/2026. Todos os 13 comentários estão no **Capítulo 6 — Testes e Análise dos Resultados** (páginas 31–39).
 
-**Status (24/07/2026): 13 de 13 concluídos.** O SS13 foi implementado e verificado
-no ambiente de referência (código, números e texto prontos). Restam apenas os
-ajustes manuais de acabamento no Word e a passagem de regeneração de figuras,
+**Status (10/08/2026): 13 de 13 concluídos.** O SS13 foi implementado e verificado
+no ambiente de referência (código, números e texto prontos). A passagem de
+regeneração de figuras foi concluída em 10/08/2026 (Pendência 5). Restam apenas os
+ajustes manuais de acabamento no Word (Pendência 4) e a limpeza de backups,
 consolidados na seção [Pendências em aberto](#pendências-em-aberto).
 
 ---
@@ -76,9 +77,10 @@ consolidados na seção [Pendências em aberto](#pendências-em-aberto).
 - [x] **SS10 + SS9 + SS11** — ~~Parágrafo introdutório antes do Quadro 5.~~ **Concluído.** Dois parágrafos novos antes do Quadro 6: glossário dos indicadores (TDI, INSE, AFD Grupos 1/3/5, IRD) e guia das colunas colado na tabela. Aplicado ao `.docx`; backup em `TCC_ANTES_SS9_SS11.docx`.
   - ⚠️ **Divergência com o orientador:** ele exemplificou o INSE como "0 a 10". O dado real do INEP 2021 vai de **2,45 a 6,85** nas 69.820 escolas do país e de **2,97 a 6,10** nesta rede. Usei os números verificados.
   - Achado colateral: o rótulo "Porte (nº de matrículas)" exibia 5,73 — é o **logaritmo**. Rótulo corrigido no quadro e em `labels.py`, com a conversão explicada no texto.
-- [x] **SS4** — ~~Incluir desvio-padrão junto das médias na seção 6.2.2.~~ **Concluído.** Urbanas 0,6% (dp 1,8), rurais 0,9% (dp 1,8), indígenas/quilombolas 6,6% (dp 9,0), com frase sobre o que o desvio alto revela. Números conferidos contra a definição exata da Figura 7 no notebook 12.
+- [x] **SS4** — ~~Incluir desvio-padrão junto das médias na seção 6.2.2.~~ **Concluído.** Urbanas 0,6% (dp 1,8), rurais 0,9% (dp 1,8), indígenas/quilombolas **6,3% (dp 8,9), 42 escolas**, com frase sobre o que o desvio alto revela.
+  - ⚠️→✅ **Definição do grupo unificada (10/08/2026):** o notebook 12 usava `isin([1, 2])` (40 escolas, média 6,6 — incluía assentamento e excluía quilombola, código 3 do INEP) enquanto o texto e o notebook 15 usavam `> 0` (42 escolas, média 6,3), a mesma definição de `is_loc_diferenciada` em `build_features.py`. O notebook 12 foi alinhado ao `> 0`, a Figura 7 regenerada e re-embutida; texto e figura agora mostram os mesmos números (6,3% / 42 escolas / 679 urbanas).
 - [x] **SS2 + SS3** — ~~Citar a Figura 7 e escrever o parágrafo que a interpreta.~~ **Concluído.** Parágrafo de leitura dos dois painéis inserido **antes** da figura. Backup em `TCC_ANTES_SS2_SS4.docx`.
-  - ⚠️ Pendência menor: o **título interno da Figura 7** ("A informação que o sistema aprende a prever") ainda usa "informação" — resquício do SS7, dentro do PNG. Corrigir na passagem de regeneração de figuras (junto com SS13/ambiente).
+  - ✅ Pendência menor resolvida: o título interno da Figura 7 agora diz "O **indicador** que o sistema aprende a prever" (corrigido no notebook 12 e re-embutido em 10/08/2026).
 
 ### Fase 5 — Reestruturação ✅ **CONCLUÍDA**
 *Por último; depende de todo o texto acima estar estável.*
@@ -147,19 +149,22 @@ consolidados na seção [Pendências em aberto](#pendências-em-aberto).
   colunas e o cabeçalho pode quebrar no meio de palavra — que foi justamente uma queixa
   do orientador sobre o quadro antigo.
 
-### 5. Passagem de regeneração de figuras ⚠️
+### 5. Passagem de regeneração de figuras ✅ **RESOLVIDO (10/08/2026)**
 
-- **Figuras 12, 15 e 16** (desempenho, ganho da lista, acerto por tamanho de lista —
-  numeração atualizada após as inserções do SS13 e da figura de resíduos; eram 12/13/14):
-  os PNGs embutidos no `.docx` ainda mostram as curvas **antigas** do XGBoost. Os
-  Quadros 9 e 10 já foram atualizados, mas essas figuras não — precisam ser
-  regeradas (notebook 07/12) e re-inseridas para bater com as tabelas. Visualmente a
-  diferença é pequena (só o XGBoost mudou), mas há inconsistência.
-  - A nova **Figura 13** (SS13, transições anuais) já é gerada com o modelo atual —
-    não precisa de regeneração.
-- **Títulos internos das Figuras 7 e E2** ainda dizem *"informação"* — resquício do
-  SS7, que só tocou texto (notebook 12, `suptitle`).
-- Fazer tudo numa passagem única de figuras.
+- **Figuras 12, 15 e 16**: já haviam sido substituídas pelas versões atuais numa rodada
+  anterior (verificado por hash MD5 contra `reports/figuras/`).
+- **Figuras 17, 18, 19 e 20** (SHAP beeswarm, direção, waterfall e equidade): os PNGs
+  embutidos eram do **modelo antigo** — a Figura 20 mostrava viés de −3,99 p.p. contra
+  os −6,12 do texto, e a 17 tinha ordem de fatores contraditória com o ¶454. Além disso
+  tinham título com "feature", rótulos técnicos crus (`abnd_s2_t`) e textos em inglês.
+  O notebook 09 foi ajustado para usar `rotular_feature` (labels.py) e traduzir os
+  textos da biblioteca shap (`traduzir_figura_shap`); o CSV `shap_importancia.csv`
+  mantém os nomes técnicos, que é o que o notebook 15 valida. As quatro figuras foram
+  regeneradas e re-embutidas; hashes conferidos.
+- **Título interno da Figura 7** corrigido ("indicador", não "informação") e figura
+  regenerada com a definição unificada do grupo diferenciado (ver SS4 na Fase 4).
+- O ¶464 foi ajustado para a ordem de fatores da figura atual (defasagem idade-série
+  antes do histórico de abandono), marcado em azul.
 
 ### 6. Numeração dos quadros mudou ⚠️
 
@@ -170,7 +175,30 @@ consolidados na seção [Pendências em aberto](#pendências-em-aberto).
 
 - Acumulados durante as edições: `TCC_Evasao_Escolar_ANTES_SS1_SS8_SS12.docx`,
   `TCC_ANTES_SS7.docx`, `TCC_ANTES_SS9_SS11.docx`, `TCC_ANTES_SS2_SS4.docx`,
-  `TCC_ANTES_SS5_SS6.docx`. Apagar após conferência final no Word.
+  `TCC_ANTES_SS5_SS6.docx`, `TCC_ANTES_NOMES_MODELOS.docx`,
+  `TCC_ANTES_P419_FIGURAS.docx`, `TCC_ANTES_LIMPEZA_MARCAS.docx`.
+  Apagar após conferência final no Word.
+
+### 8. Rodada de clareza (10/08/2026) ✅
+
+- **Identificação dos modelos:** os modelos de referência ganharam nome no ¶291
+  (regressão Ridge e floresta aleatória), o ¶416 lista os quatro concorrentes e ancora
+  "modelo adotado (XGBoost)" antes do Quadro 9, e o ¶430 usa um único termo
+  ("modelo adotado") alinhado ao rótulo das tabelas. Backup `TCC_ANTES_NOMES_MODELOS.docx`.
+- **¶419 destravado:** o parágrafo do Quadro 9 carregava uma edição inacabada de rodada
+  anterior — exclusões marcadas em branco-sobre-vermelho conviviam com as inserções em
+  azul, e a leitura corrida duplicava "o modelo adotado acompanha os demais". As duas
+  exclusões foram efetivadas; as inserções seguem marcadas em azul para aceite do autor.
+  Backup `TCC_ANTES_P419_FIGURAS.docx`.
+- **Marcas de revisão:** as 12 marcas azul+amarelo desta rodada foram **aceitas e
+  removidas em 10/08/2026** a pedido do autor (backup `TCC_ANTES_LIMPEZA_MARCAS.docx`);
+  o corpo do texto está sem nenhuma marcação. Permanece apenas o aviso dentro da caixa
+  da ficha catalográfica, que é placeholder e depende do autor. Validações após a
+  rodada: varredura do notebook 15 com 136 OK / 0 divergências, `pytest` 138/138,
+  estrutura sem regressão.
+- **Material de defesa:** a justificativa completa da escolha do modelo (números,
+  limites do argumento e respostas às perguntas prováveis da banca) está em
+  `documentos/JUSTIFICATIVA_ESCOLHA_MODELO.md`.
 
 ---
 

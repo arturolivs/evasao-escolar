@@ -26,6 +26,8 @@ Saídas:
 
 from __future__ import annotations
 
+import re
+
 from comum import (
     COR_ABANDONO,
     COR_RURAL,
@@ -50,9 +52,37 @@ from src.models.explain import (
     resumo_residuos_por_grupo,
 )
 from src.models.train import carregar_dataset, carregar_modelo, colunas_features
+from src.recommend.labels import rotular_feature
 
 COR_CONTRIBUICAO_POSITIVA = COR_ABANDONO
 COR_CONTRIBUICAO_NEGATIVA = COR_URBANA
+
+
+def traduzir_figura_shap(fig) -> None:
+    """Troca os textos em inglês que a biblioteca shap desenha nas figuras.
+
+    As figuras entram na monografia (Figuras 17–19) e falam com gestor:
+    nada de "feature", "High/Low" nem "Sum of N other features".
+    """
+    fig.canvas.draw()
+    for ax in fig.axes:
+        if ax.get_xlabel() == "SHAP value (impact on model output)":
+            ax.set_xlabel("Contribuição à previsão (SHAP, em √%)")
+        if ax.get_ylabel() == "Feature value":
+            ax.set_ylabel("Valor da característica")
+        for obter, definir in ((ax.get_yticklabels, ax.set_yticklabels),
+                               (ax.get_xticklabels, ax.set_xticklabels)):
+            rotulos = [t.get_text() for t in obter()]
+            novos = []
+            for s in rotulos:
+                n = {"Low": "Baixo", "High": "Alto"}.get(s, s)
+                n = re.sub(r"Sum of (\d+) other features",
+                           r"Soma das outras \1 características", n)
+                n = re.sub(r"^(\d+) other features$",
+                           r"Outras \1 características", n)
+                novos.append(n)
+            if novos != rotulos:
+                definir(novos)
 
 
 # =============================================================================
@@ -63,26 +93,25 @@ def shap_global(shap_values) -> None:
     sep("S1 — SHAP GLOBAL (importância e dispersão das contribuições)")
 
     imp = importancia_shap(shap_values)
-    print("\nTop 15 features por |SHAP| médio (unidades de sqrt(%)):")
+    print("\nTop 15 características por |SHAP| médio (unidades de sqrt(%)):")
     for _, r in imp.head(15).iterrows():
         print(f"  {r['feature']:<28} {r['shap_mean_abs']:.4f}")
-
-    imp.to_csv(REPORTS_DIR / "shap_importancia.csv", index=False)
-    print(f"\nTabela salva em: {REPORTS_DIR / 'shap_importancia.csv'}")
 
     plt.figure(figsize=(9, 7))
     shap.plots.beeswarm(shap_values, max_display=15, show=False)
     fig = plt.gcf()
-    fig.suptitle("S1 — SHAP global (beeswarm): contribuição por escola e feature",
+    fig.suptitle("Contribuição de cada característica, escola a escola",
                  fontsize=12, fontweight="bold")
+    traduzir_figura_shap(fig)
     fig.tight_layout()
     salvar_figura(fig, "S1_shap_beeswarm.png")
 
     plt.figure(figsize=(8, 6))
     shap.plots.bar(shap_values, max_display=15, show=False)
     fig = plt.gcf()
-    fig.suptitle("S1 — SHAP global (barras): importância média |SHAP|",
+    fig.suptitle("Importância média |SHAP| de cada característica",
                  fontsize=12, fontweight="bold")
+    traduzir_figura_shap(fig)
     fig.tight_layout()
     salvar_figura(fig, "S1_shap_barras.png")
 
@@ -106,9 +135,9 @@ def shap_direcao(shap_values) -> None:
              for c in top["corr_valor_shap"].fillna(0)]
     fig, ax = plt.subplots(figsize=(9, 6))
     ax.barh(top["feature"], top["shap_mean_abs"], color=cores, alpha=0.85)
-    ax.set_xlabel("|SHAP| médio (unidades de sqrt(%))")
-    ax.set_title("S2 — Importância e direção das features\n"
-                 "vermelho = valor alto aumenta risco · azul = reduz",
+    ax.set_xlabel("Peso médio na previsão (|SHAP|, em √%)")
+    ax.set_title("Peso e direção de cada característica\n"
+                 "vermelho = valor alto aumenta o risco · azul = reduz",
                  fontsize=12, fontweight="bold")
     fig.tight_layout()
     salvar_figura(fig, "S2_shap_direcao.png")
@@ -136,9 +165,10 @@ def shap_local(shap_values, df, modelo) -> None:
         plt.figure(figsize=(9, 6))
         shap.plots.waterfall(shap_values[idx], max_display=12, show=False)
         fig = plt.gcf()
-        fig.suptitle(f"S3 — SHAP local ({rotulo.lower()}): "
+        fig.suptitle(f"Explicação individual ({rotulo.lower()}): "
                      f"{escola.get('NO_ENTIDADE', '?')}",
                      fontsize=11, fontweight="bold")
+        traduzir_figura_shap(fig)
         fig.tight_layout()
         salvar_figura(fig, arquivo)
 
@@ -209,13 +239,15 @@ def diagnostico_residuos(modelo, df) -> None:
 
 def figura_equidade(res) -> None:
     grupos = ["urbana", "rural", "diferenciada"]
+    rotulos = {"urbana": "Urbana", "rural": "Rural",
+               "diferenciada": "Indígena ou\nquilombola"}
     cores_grupo = {"urbana": COR_URBANA, "rural": COR_RURAL, "diferenciada": COR_ABANDONO}
     dados = [res.loc[res["grupo"] == g, "residuo"] for g in grupos]
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
     ax = axes[0]
-    bp = ax.boxplot(dados, tick_labels=grupos, patch_artist=True,
+    bp = ax.boxplot(dados, tick_labels=[rotulos[g] for g in grupos], patch_artist=True,
                     medianprops=dict(color="black", lw=2))
     for patch, g in zip(bp["boxes"], grupos):
         patch.set_facecolor(cores_grupo[g])
@@ -226,7 +258,8 @@ def figura_equidade(res) -> None:
 
     ax = axes[1]
     medias = [res.loc[res["grupo"] == g, "residuo"].mean() for g in grupos]
-    ax.bar(grupos, medias, color=[cores_grupo[g] for g in grupos], alpha=0.8)
+    ax.bar([rotulos[g] for g in grupos], medias,
+           color=[cores_grupo[g] for g in grupos], alpha=0.8)
     ax.axhline(0, color="black", lw=1)
     for i, m in enumerate(medias):
         ax.text(i, m + (0.1 if m >= 0 else -0.3), f"{m:+.2f}",
@@ -234,7 +267,7 @@ def figura_equidade(res) -> None:
     ax.set_ylabel("Resíduo médio (p.p.)")
     ax.set_title("Viés médio por grupo (negativo = superpredição)")
 
-    fig.suptitle("S5 — Equidade: resíduo do XGBoost por localização (teste temporal 2023→2024)",
+    fig.suptitle("Erro do sistema por grupo de localização (teste do ano nunca visto, 2023→2024)",
                  fontsize=13, fontweight="bold")
     fig.tight_layout()
     salvar_figura(fig, "S5_equidade_grupos.png")
@@ -304,6 +337,14 @@ def main() -> None:
     print(f"Matriz SHAP: {matriz.shape[0]:,} obs × {matriz.shape[1]} features transformadas")
 
     shap_values = calcular_shap_values(modelo, df[colunas_features(df)])
+
+    # o CSV de importância mantém os nomes técnicos — é contra eles que o
+    # notebook 15 valida o texto da monografia
+    importancia_shap(shap_values).to_csv(REPORTS_DIR / "shap_importancia.csv", index=False)
+    print(f"Tabela salva em: {REPORTS_DIR / 'shap_importancia.csv'}")
+
+    # as figuras falam a língua do gestor: rótulos traduzidos daqui em diante
+    shap_values.feature_names = [rotular_feature(f) for f in shap_values.feature_names]
 
     shap_global(shap_values)
     shap_direcao(shap_values)

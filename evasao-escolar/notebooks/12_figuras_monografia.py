@@ -117,11 +117,13 @@ def figura_alvo(df: pd.DataFrame, features: pd.DataFrame) -> None:
 
     ano_ref = df["NU_ANO_CENSO"].max()
     recorte = df[df.NU_ANO_CENSO == ano_ref].copy()
+    # mesma definição de `is_loc_diferenciada` do pipeline (build_features.py):
+    # qualquer código > 0 é localização diferenciada
+    dif = recorte.TP_LOCALIZACAO_DIFERENCIADA.fillna(0) > 0
     grupos = {
-        "Urbana": recorte[(recorte.TP_LOCALIZACAO == 1)],
-        "Rural": recorte[(recorte.TP_LOCALIZACAO == 2)
-                         & (recorte.TP_LOCALIZACAO_DIFERENCIADA == 0)],
-        "Indígena ou\nquilombola": recorte[recorte.TP_LOCALIZACAO_DIFERENCIADA.isin([1, 2])],
+        "Urbana": recorte[(recorte.TP_LOCALIZACAO == 1) & ~dif],
+        "Rural": recorte[(recorte.TP_LOCALIZACAO == 2) & ~dif],
+        "Indígena ou\nquilombola": recorte[dif],
     }
     nomes = list(grupos)
     medias = [g["TAXA_ABND_MED"].mean() for g in grupos.values()]
