@@ -1,13 +1,14 @@
 # Comentários do Orientador — TCC Evasão Escolar
 
-Fonte: `TCC_Evasao_Escolar_comentários.pdf` (autor dos comentários: SS)
-Extraídos em 22/07/2026. Todos os 13 comentários estão no **Capítulo 6 — Testes e Análise dos Resultados** (páginas 31–39).
+Fontes: `TCC_Evasao_Escolar_comentários.pdf` (SS1–SS13, extraídos em 22/07/2026) e
+`comentários-orientador.md` (SS14, recebido em 11/08/2026). Todos incidem no
+**Capítulo 6 — Testes e Análise dos Resultados**.
 
-**Status (10/08/2026): 13 de 13 concluídos.** O SS13 foi implementado e verificado
-no ambiente de referência (código, números e texto prontos). A passagem de
-regeneração de figuras foi concluída em 10/08/2026 (Pendência 5). Restam apenas os
-ajustes manuais de acabamento no Word (Pendência 4) e a limpeza de backups,
-consolidados na seção [Pendências em aberto](#pendências-em-aberto).
+**Status (11/08/2026): 14 de 14 concluídos.** O SS14 — pedido de exemplos concretos,
+escola a escola — foi aplicado ao `.docx` em 11/08/2026 (Quadro 12 novo + 3 inserções
+de texto), com marcação de revisão em azul e 26 checagens novas no notebook 15.
+Restam apenas os ajustes manuais de acabamento no Word (Pendência 4) e a limpeza de
+backups, consolidados na seção [Pendências em aberto](#pendências-em-aberto).
 
 ---
 
@@ -28,12 +29,13 @@ consolidados na seção [Pendências em aberto](#pendências-em-aberto).
 | SS11 | 33 | Quadro 5 (resposta a SS9) | *"ex: nível socioeconômico (INSE) é um valor que varia de 0 a 10, e indica o desenv. econômico da comunidade onde a escola está inserida"* |
 | SS12 | 36 | Quadro 6 | *"a coluna abandono tem e abandono não tem — devem somar 100% para fazer sentido essa tabela"* |
 | SS13 | 39 | 6.3.2 — Quadro 8 | *"mostre a comparação usando 1 modelo e dois cenários: 2022 prevendo 2023 e 2023 prevendo 2024"* |
+| SS14 | — | Capítulo 6 (seção 6.3 / Quadro 11) | *"ainda tô achando confusa a seção 6… não consigo entender o que o modelo faz exatamente… quando olho o Quadro 11 não sei se o modelo tá bom ou tá ruim… gostaria de ver: a evasão da escola X foi 10 e o modelo disse 9… talvez tenha escolas que o modelo acerta muito e outras que acerta pouco, queria saber quais são os casos"* |
 
 ### Agrupamento por natureza
 
 - **Terminologia:** SS7
 - **Rastreabilidade metodológica:** SS1, SS8, SS12
-- **Didática de tabelas e figuras:** SS2, SS3, SS4, SS9, SS10, SS11
+- **Didática de tabelas e figuras:** SS2, SS3, SS4, SS9, SS10, SS11, SS14
 - **Reestruturação / novo experimento:** SS5, SS6, SS13
 
 ---
@@ -81,6 +83,35 @@ consolidados na seção [Pendências em aberto](#pendências-em-aberto).
   - ⚠️→✅ **Definição do grupo unificada (10/08/2026):** o notebook 12 usava `isin([1, 2])` (40 escolas, média 6,6 — incluía assentamento e excluía quilombola, código 3 do INEP) enquanto o texto e o notebook 15 usavam `> 0` (42 escolas, média 6,3), a mesma definição de `is_loc_diferenciada` em `build_features.py`. O notebook 12 foi alinhado ao `> 0`, a Figura 7 regenerada e re-embutida; texto e figura agora mostram os mesmos números (6,3% / 42 escolas / 679 urbanas).
 - [x] **SS2 + SS3** — ~~Citar a Figura 7 e escrever o parágrafo que a interpreta.~~ **Concluído.** Parágrafo de leitura dos dois painéis inserido **antes** da figura. Backup em `TCC_ANTES_SS2_SS4.docx`.
   - ✅ Pendência menor resolvida: o título interno da Figura 7 agora diz "O **indicador** que o sistema aprende a prever" (corrigido no notebook 12 e re-embutido em 10/08/2026).
+
+### Fase 6 — Concretude (SS14) ✅ **CONCLUÍDA (11/08/2026)**
+*Comentário novo, recebido depois de fechada a rodada dos 13 primeiros.*
+
+- [x] **SS14** — ~~Mostrar o modelo em escolas concretas e dar régua de julgamento aos quadros.~~
+  **Concluído.** O comentário trazia quatro pedidos, atendidos em três inserções — proposta
+  completa e aprovada em `SS14_TEXTO_PARA_O_TCC.md`:
+  1. *"não entendo o que o modelo faz"* → parágrafo operacional abrindo 6.3.1 (¶413):
+     recebe 39 características de um ano, devolve a taxa prevista do seguinte, e a ordem
+     dessas taxas é a lista.
+  2. *"não sei se tá bom ou ruim"* → régua de leitura no início do parágrafo do Quadro 11
+     (¶437): o acaso acertaria ~10%; 0,627 significa 63 de cada 100 apontadas.
+  3. *"queria ver escola X com 10 e o modelo dizendo 9"* + *"quais são os casos"* →
+     subseção nova fechando 6.3, **"O Que Esses Números Significam em Seis Escolas"**
+     (¶445), com **Quadro 12** (7×4), parágrafo-guia, nota e parágrafo de leitura com a
+     tipologia dos acertos e dos dois padrões de erro.
+- **Escolhas registradas:** o quadro entrou ao **fim** de 6.3 justamente para não
+  renumerar nada (Quadros 1–11 e Figuras 1–20 intactos); as escolas foram **nomeadas**
+  (dado público do INEP, e a monografia já nomeia uma escola na Figura 19).
+- **O exemplo hipotético do orientador existe nos dados:** a Escola Sagrada Família teve
+  16,7% de abandono e o modelo previu 16,4%. O quadro não é vitrine — inclui o pior erro
+  da rede (EREF Coronel Othon: 23,7% observado, previsão 0,0%, última posição da lista).
+- **Governança:** bloco 10 novo no `notebooks/15_varredura_numeros.py` com 26 checagens —
+  as 6 linhas do quadro (inclusive a **posição**, recalculada pela ordenação do CSV), as
+  531 escolas sem abandono, os 92% previstos abaixo de 1%, a Maria Lúcia Alves e a
+  verificação de que ela é mesmo a maior perda em alunos. Varredura: **162 OK, 0
+  divergências**; `pytest` 138/138. Backup `TCC_ANTES_SS14.docx`.
+- ⚠️ **Word:** Quadro 12 já inserido na Lista de Quadros pré-textual (lista manual); o
+  Sumário continua sendo campo automático — atualizar com Ctrl+A, F9.
 
 ### Fase 5 — Reestruturação ✅ **CONCLUÍDA**
 *Por último; depende de todo o texto acima estar estável.*
@@ -176,8 +207,8 @@ consolidados na seção [Pendências em aberto](#pendências-em-aberto).
 - Acumulados durante as edições: `TCC_Evasao_Escolar_ANTES_SS1_SS8_SS12.docx`,
   `TCC_ANTES_SS7.docx`, `TCC_ANTES_SS9_SS11.docx`, `TCC_ANTES_SS2_SS4.docx`,
   `TCC_ANTES_SS5_SS6.docx`, `TCC_ANTES_NOMES_MODELOS.docx`,
-  `TCC_ANTES_P419_FIGURAS.docx`, `TCC_ANTES_LIMPEZA_MARCAS.docx`.
-  Apagar após conferência final no Word.
+  `TCC_ANTES_P419_FIGURAS.docx`, `TCC_ANTES_LIMPEZA_MARCAS.docx`,
+  `TCC_ANTES_SS14.docx`. Apagar após conferência final no Word.
 
 ### 8. Rodada de clareza (10/08/2026) ✅
 

@@ -1,7 +1,20 @@
-Mas a sessão 6 na parte que mostra o desempenho,  que seria a acuracia do.modelo, o quanto ele acerta ainda está bem ruim.
-Essa parte precisa ser simplificada.
+Ainda to achando confuso a sessão 6
  
-Vc esta comparando modelos e mostrando a comparação,  mas nao está explicando quanto o modelo erra ou acerta
+Nao consigo entender o que o modelo faz exatamente 
  
-Isso precisa mudar no texto, se nao fica difícil entender a contribuição 
+O quadro 11 por exemplo traz um grande levantamento de taxa de acertos
+ 
+Mas qdo olho, eu nao sei se k modelo ta bom ou ta ruim
+ 
+Eu gostaria de ver algo do tipo
+ 
+A evasão da escola x foi 10 e k modelo disse 9
+ 
+Mas teve escola com. Evasão 0 e modelo disse 1 ou zero
+ 
+Talvez tenha escolas que o modelo acerta muito e outros que acerta pouco
+ 
+Queria saber quais são os casos
+ 
+Achonque ta faltando isso
  

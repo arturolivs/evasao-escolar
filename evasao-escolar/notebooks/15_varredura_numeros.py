@@ -468,7 +468,94 @@ else:
 
 print()
 print("=" * 78)
-print("10. SUITE DE TESTES")
+print("10. QUADRO 12 e casos concretos (SS14)")
+print("=" * 78)
+# O quadro nomeia escolas: cada linha e reconferida contra o CSV de residuos do
+# teste temporal, inclusive a POSICAO, recalculada pela ordenacao do proprio CSV.
+rg = rgrupo.copy()
+rg["rank_pred"] = rg["y_pred"].rank(ascending=False, method="min").astype(int)
+N_TESTE = len(rg)
+checa("Q12: escolas no teste temporal", 789, N_TESTE, fonte="residuos_grupo_temporal.csv")
+
+
+def _norm(s):
+    import unicodedata
+    s = unicodedata.normalize("NFKD", str(s))
+    return "".join(c for c in s if not unicodedata.combining(c)).upper().strip()
+
+
+def _localiza(rotulo_docx):
+    """'EREM Santos Dumont (Recife)' -> linha do CSV, sem valor decorado."""
+    nome, _, resto = rotulo_docx.partition("(")
+    municipio = resto.rstrip(")").strip()
+    nome = _norm(nome)
+    for prefixo in ("EREM ", "EREF "):
+        if nome.startswith(prefixo):
+            nome = nome[len(prefixo):]
+    cand = rg[rg["NO_MUNICIPIO"].map(_norm) == _norm(municipio)]
+    cand = cand[cand["NO_ENTIDADE"].map(_norm).str.contains(nome.strip(), regex=False)]
+    return cand
+
+
+q12 = TABS[12] if len(TABS) > 12 else None
+if q12 is None or len(q12.rows) != 7:
+    res["div"].append(("Quadro 12", "7 linhas", "ausente ou com outro formato", "docx"))
+    print("  XX Quadro 12 ausente ou fora do formato 7x4 — bloco nao pode validar")
+else:
+    for row in q12.rows[1:]:
+        rotulo = row.cells[0].text.strip()
+        obs_txt = row.cells[1].text.strip().replace("%", "")
+        prev_txt = row.cells[2].text.strip().replace("%", "")
+        pos_txt = re.sub(r"[^\d]", "", row.cells[3].text.split("(")[0])
+        linha = _localiza(rotulo)
+        if len(linha) != 1:
+            res["div"].append((f"Q12 «{rotulo}»", "1 escola", f"{len(linha)} encontradas", "csv"))
+            print(f"  XX Q12 «{rotulo}»: {len(linha)} escolas casam no CSV")
+            continue
+        x = linha.iloc[0]
+        checa(f"Q12 «{rotulo}» observado", obs_txt, float(x["y_real"]), tol=0.05,
+              fonte="residuos_grupo_temporal.csv")
+        # previsao negativa e exibida como zero, igual ao predict.py (risco.clip(min=0))
+        checa(f"Q12 «{rotulo}» previsto", prev_txt, max(0.0, float(x["y_pred"])), tol=0.06,
+              fonte="residuos_grupo_temporal.csv")
+        checa(f"Q12 «{rotulo}» posicao", pos_txt, float(x["rank_pred"]), tol=0.001,
+              fonte="ordenacao de y_pred no CSV")
+
+# afirmacoes do paragrafo de leitura
+zeros = rg[rg["y_real"] == 0]
+checa("¶leitura: escolas com abandono zero", 531, len(zeros),
+      fonte="residuos_grupo_temporal.csv")
+checa("¶leitura: % dessas previstas abaixo de 1%", 92, (zeros["y_pred"] < 1).mean() * 100,
+      tol=0.02, fonte="residuos_grupo_temporal.csv")
+ml = rg[rg["NO_ENTIDADE"].map(_norm).str.contains("MARIA LUCIA ALVES", regex=False)]
+if len(ml) == 1:
+    checa("¶leitura: Maria Lucia Alves observado", 14.0, float(ml.iloc[0]["y_real"]),
+          tol=0.02, fonte="residuos_grupo_temporal.csv")
+    checa("¶leitura: Maria Lucia Alves previsto", 0.7, float(ml.iloc[0]["y_pred"]),
+          tol=0.08, fonte="residuos_grupo_temporal.csv")
+    a24 = ralunos[ralunos["transicao"] == "2023-2024"]
+    linha_ml = a24[a24["CO_ENTIDADE"] == ml.iloc[0]["CO_ENTIDADE"]]
+    checa("¶leitura: Maria Lucia Alves em alunos", 154, float(linha_ml["alunos_real"].iloc[0]),
+          tol=0.02, fonte="residuos_transicoes_alunos.csv")
+    maior = a24.nlargest(1, "alunos_real").iloc[0]
+    if int(maior["CO_ENTIDADE"]) == int(ml.iloc[0]["CO_ENTIDADE"]):
+        res["ok"] += 1
+        print("  ok «maior perda da rede em alunos» confere com o CSV")
+    else:
+        res["div"].append(("maior perda em alunos", "Maria Lucia Alves",
+                           str(maior["NO_ENTIDADE"]), "residuos_transicoes_alunos.csv"))
+        print(f"  XX o texto diz Maria Lucia Alves, mas a maior perda e {maior['NO_ENTIDADE']}")
+else:
+    res["na"].append(("Maria Lucia Alves", "1 linha", "csv"))
+
+# a nota do quadro cita o tamanho da lista de prioridade; K vem do evaluate.py
+k_lista = max(1, int(round(N_TESTE * 0.10)))
+checa("nota do Q12: tamanho da lista de prioridade", 79, k_lista,
+      fonte="max(1, round(n*0,10)) — evaluate.py")
+
+print()
+print("=" * 78)
+print("11. SUITE DE TESTES")
 print("=" * 78)
 print("   (contagem verificada por execucao do pytest, em separado)")
 
