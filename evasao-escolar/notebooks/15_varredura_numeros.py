@@ -427,10 +427,10 @@ top6 = list(shap_imp.head(6)["feature"])
 print("   top-6 no CSV:", top6)
 
 par_shap = next(p for p in PARS if "o melhor previsor do tempo de amanhã" in p)
-ini = par_shap.find("Aplicada a todo o conjunto")
+ini = par_shap.find("No topo está")
 if ini < 0:
     res["div"].append(("ancora do paragrafo SHAP", "presente", "AUSENTE", "nb15"))
-    print("  XX ancora 'Aplicada a todo o conjunto' sumiu do paragrafo — "
+    print("  XX ancora 'No topo está' sumiu do paragrafo — "
           "atualizar este bloco antes de confiar nele")
 else:
     print("   texto: ...", par_shap[ini:][:260])

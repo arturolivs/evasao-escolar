@@ -26,11 +26,11 @@ antecipadamente escolas de Ensino Médio com alto risco de abandono no ano segui
 monografia/
 ├── evasao-escolar/          # o sistema (pacote src/, testes, dados, relatórios)
 │   ├── src/                 # código de produção
-│   ├── notebooks/           # scripts de análise numerados 01..15 (não .ipynb)
+│   ├── notebooks/           # scripts de análise numerados 01..16 (não .ipynb)
 │   ├── tests/               # 138 testes pytest
 │   ├── data/                # raw/ interim/ processed/  (fora do Git)
 │   ├── models/              # *.joblib (fora do Git)
-│   ├── reports/             # métricas .csv + figuras/ (72 PNGs)
+│   ├── reports/             # métricas .csv + figuras/ (75 PNGs)
 │   └── requirements.txt     # versões FIXADAS com == (ver Ambiente)
 ├── documentos/              # a monografia e todo o material de escrita
 │   ├── monografia-artur-oliveira-engenharia-de-software-2026.docx   # documento principal
@@ -124,6 +124,7 @@ python notebooks/14_ss13_cenarios_temporais.py
 # 7. figuras
 python notebooks/10_diagramas_arquitetura.py
 python notebooks/12_figuras_monografia.py
+python notebooks/16_figuras_simplificadas.py
 # 8. predição
 python -m src.models.predict 2024
 ```
@@ -221,8 +222,14 @@ que 2023→2024 (0,367 / 0,381), acompanhando a queda do abandono médio (1,36% 
   alvo de edição.
 - **Sempre criar backup** antes de alterar o `.docx`, seguindo a convenção existente:
   `TCC_ANTES_<ASSUNTO>.docx` em `documentos/`.
-- **Estado atual**: 7 capítulos, 20 figuras, 11 quadros, 29 referências (16 com PDF em
+- **Estado atual**: 7 capítulos, 22 figuras, 12 quadros, 29 referências (16 com PDF em
   `documentos/referencias/`). Numeração de figuras e quadros sem lacunas.
+- **Figuras do Capítulo 6 em linguagem de gestor** (`notebooks/16_figuras_simplificadas.py`):
+  as versões técnicas M5, M6 e o beeswarm S1 **não** entram mais no corpo do texto — foram
+  substituídas por `G3`, `G4` e `G5`, que usam os mesmos números com os rótulos dos Quadros 9
+  e 10. `G1` (funil 2.392→1.586) e `G2` (erro do valor × acerto da ordem) são as Figuras 7 e
+  14, sem equivalente técnico anterior. Ao mexer nessas figuras, editar o notebook 16, nunca
+  o 07 ou o 09.
 - **Nunca digitar um número no `.docx` sem que ele saia de um artefato do pipeline.** Depois
   de qualquer edição numérica, rodar `/validar-numeros` — a varredura confere 121 valores do
   documento contra os parquets/CSVs.
