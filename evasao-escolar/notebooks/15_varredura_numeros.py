@@ -360,6 +360,28 @@ checa("¶427 acertos do acaso na lista de 79", 7,
       float(dum_t["precision_at_k"].mean()) * k_temporal, tol=0.02,
       fonte="metricas_baselines.csv")
 
+# Numeros acrescentados na reescrita do Capitulo 6 (ago/2026): a leitura dos
+# quadros passou a citar valores que antes so apareciam nas tabelas, e a
+# justificativa das escolhas trouxe o experimento de ablacao e o par
+# acerto/alcance da lista para dentro do texto.
+checa("Cap.6 R² do modelo adotado no teste temporal", -0.33,
+      float(xgb_t["r2"].mean()), tol=0.03, fonte="metricas_xgboost.csv")
+abl = pd.read_csv(os.path.join(RAIZ, "reports/ablacao_ied_icg.csv")).set_index("cenario")
+checa("ablacao: ordenacao sem IED/ICG", 0.453, float(abl.loc["sem_ied_icg", "spearman"]),
+      tol=0.006, fonte="ablacao_ied_icg.csv")
+checa("ablacao: ordenacao com IED/ICG", 0.455, float(abl.loc["com_ied_icg", "spearman"]),
+      tol=0.006, fonte="ablacao_ied_icg.csv")
+checa("ablacao: lista sem IED/ICG", 0.519, float(abl.loc["sem_ied_icg", "precision_at_k"]),
+      tol=0.006, fonte="ablacao_ied_icg.csv")
+checa("ablacao: lista com IED/ICG", 0.525, float(abl.loc["com_ied_icg", "precision_at_k"]),
+      tol=0.006, fonte="ablacao_ied_icg.csv")
+checa("ablacao: variacao entre repeticoes (dp da ordenacao)", 0.068,
+      float(abl.loc["sem_ied_icg", "spearman_dp"]), tol=0.006, fonte="ablacao_ied_icg.csv")
+checa("ablacao: erro medio sem IED/ICG", 2.858, float(abl.loc["sem_ied_icg", "rmse"]),
+      tol=0.006, fonte="ablacao_ied_icg.csv")
+checa("ablacao: erro medio com IED/ICG", 2.861, float(abl.loc["com_ied_icg", "rmse"]),
+      tol=0.006, fonte="ablacao_ied_icg.csv")
+
 print()
 print("=" * 78)
 print("7. QUADRO 11 e transicoes anuais (SS13)")
@@ -409,9 +431,32 @@ checa("MAE em alunos — transicao 1", 3.3, vals[0], tol=0.03, fonte="residuos_t
 checa("MAE em alunos — transicao 2", 3.0, vals[1], tol=0.03, fonte="residuos_transicoes_alunos.csv")
 
 eq = rgrupo.groupby("grupo")["residuo"].mean()
+checa("equidade: nº de escolas de localizacao diferenciada", 41,
+      int((rgrupo["grupo"] == "diferenciada").sum()), fonte="residuos_grupo_temporal.csv")
 checa("equidade diferenciada", -6.12, float(eq["diferenciada"]), tol=0.01, fonte="residuos_grupo_temporal.csv")
 checa("equidade urbana", 0.07, float(eq["urbana"]), tol=0.02, fonte="residuos_grupo_temporal.csv")
 checa("equidade rural", 0.38, float(eq["rural"]), tol=0.02, fonte="residuos_grupo_temporal.csv")
+
+# Capacidade de priorizacao: alcance e acerto para diferentes tamanhos de lista.
+# Criticas = decil superior do abandono OBSERVADO no ano de teste; a lista sai da
+# ordenacao decrescente da previsao. Mesma definicao do notebook 07.
+_y = rgrupo["y_real"].to_numpy()
+_p = rgrupo["y_pred"].to_numpy()
+_crit = _y >= np.quantile(_y, 0.90)
+_ordem = np.argsort(-_p)
+for _k, _alc, _ace in [(50, 28, 44), (100, 46, None), (150, 57, 31)]:
+    _sel = _ordem[:_k]
+    checa(f"lista de {_k}: alcance das criticas (%)", _alc,
+          float(_crit[_sel].sum() / _crit.sum() * 100), tol=0.02,
+          fonte="residuos_grupo_temporal.csv")
+    if _ace is not None:
+        checa(f"lista de {_k}: acerto, % de criticas na lista", _ace,
+              float(_crit[_sel].mean() * 100), tol=0.02,
+              fonte="residuos_grupo_temporal.csv")
+checa("lista de 50: alcance do acaso (%)", 6, 50 / len(rgrupo) * 100, tol=0.06,
+      fonte="residuos_grupo_temporal.csv")
+checa("lista de 150: alcance do acaso (%)", 19, 150 / len(rgrupo) * 100, tol=0.03,
+      fonte="residuos_grupo_temporal.csv")
 
 col_r = "residuo" if "residuo" in rdiag.columns else rdiag.columns[-1]
 checa("¶500 desvio minimo (P3)", -27.87, float(rdiag[col_r].min()), tol=0.01,

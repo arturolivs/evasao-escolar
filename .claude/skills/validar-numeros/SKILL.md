@@ -25,10 +25,15 @@ características, quadros descritivos, métricas, SS13, resíduos, equidade, SHA
 resumo final no formato:
 
 ```
-RESUMO: 127 conferidos OK · 0 divergencia(s) · 0 sem fonte automatica
+RESUMO: 178 conferidos OK · 0 divergencia(s) · 0 sem fonte automatica
 ```
 
-**Última execução verificada: 127 OK, 0 divergências, 0 sem fonte.**
+**Última execução verificada: 178 OK, 0 divergências, 0 sem fonte (14/08/2026).**
+Subiu de 136 para 178 na reescrita do Capítulo 6: a leitura dos quadros passou a citar no
+texto valores que antes só apareciam nas tabelas, e as justificativas das escolhas trouxeram
+números novos, todos com checagem acrescentada ao notebook 15 — R² do teste temporal (−0,33),
+as sete linhas do experimento de ablação IED/ICG, o par acerto×alcance por tamanho de lista
+(50, 100, 150) e a contagem de escolas de localização diferenciada (41).
 
 Complementar com a suíte, que trava as invariantes que a varredura não cobre:
 
@@ -73,7 +78,7 @@ Pontos que o script **imprime mas não trava** — conferir a olho:
   > vazio e ninguém notava. As asserções novas pegam as duas — verificado simulando a redação
   > antiga, que acende `top «abnd_s2_t» ausente` e `INSE citado, sendo o 13º`.
 - **Bloco 10 (contagem de testes).** Delegado ao `pytest` rodado em separado — este bloco
-  **não** compara nada. O `.docx` diz "138 testes" em 4 pontos (¶309, ¶357, ¶491, ¶504) e o
+  **não** compara nada. O `.docx` diz "138 testes" em 4 pontos (¶310, ¶358, ¶527, ¶540) e o
   `pytest` confirma 138. Todo teste novo obriga a atualizar esses 4 pontos. Atenção:
   `PLANO_DE_FINALIZACAO.md`, `SS1_TEXTO_PARA_O_TCC.md` e `SS12_TEXTO_PARA_O_TCC.md` falam de
   114, 108 e 104 — são registros históricos de cada rodada, não erros.
