@@ -218,7 +218,10 @@ Duas regras atravessam todo o código e são travadas por teste:
 - Microdados do INEP em `evasao-escolar/data/raw/`, nas subpastas `censo/`,
   `taxas_rendimento/`, `inse/`, `indicador_regularidade_docente/`,
   `taxa_distorcao_idade/`, `adequacao_formacao_docente/`, `esforco_docente/` e
-  `complexidade_gestao_escola/` — edições de 2022 a 2024
+  `complexidade_gestao_escola/` — edições de 2022 a 2024, cerca de 1 GB no total.
+  Os arquivos não são versionados; cada subpasta tem um `README.md` com o link
+  direto de download e o nome exato que o arquivo precisa ter. Comece por
+  [`evasao-escolar/data/raw/README.md`](evasao-escolar/data/raw/README.md).
 
 ### Passos
 
@@ -233,8 +236,10 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Se os nomes dos arquivos do INEP diferirem, ajuste `src/data/config.py` — o `load.py`
-também resolve por padrão de nome, porque o INEP muda a nomenclatura entre edições.
+Se os nomes dos arquivos do INEP diferirem, renomeie conforme o `README.md` da subpasta ou
+ajuste `src/data/config.py` — o `load.py` também resolve por padrão de nome, porque o INEP
+muda a nomenclatura entre edições. O caso conhecido é o AFD de 2023, publicado como
+`AFD_ESCOLAS_2023_v1.1.xlsx`.
 
 ### Ambiente de referência
 

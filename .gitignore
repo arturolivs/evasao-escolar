@@ -1,3 +1,9 @@
 ignore/**
+
+# Dados brutos do INEP: os arquivos ficam fora do Git (~1 GB), mas a estrutura
+# de pastas e os README.md com as instruções de download são versionados.
 evasao-escolar/data/raw/**
+!evasao-escolar/data/raw/**/
+!evasao-escolar/data/raw/**/README.md
+
 src/__pycache__/**
