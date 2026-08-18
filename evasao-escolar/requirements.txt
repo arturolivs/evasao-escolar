@@ -23,3 +23,6 @@ plotly==6.7.0
 openpyxl==3.1.5
 pytest==9.0.3
 pytest-cov==7.1.0
+
+# Leitura do .docx na varredura de números (notebooks/15_varredura_numeros.py).
+python-docx==1.2.0

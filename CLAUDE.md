@@ -38,7 +38,7 @@ monografia/
 │   ├── COMENTARIOS_ORIENTADOR.md      # os 13 comentários (SS1..SS13) e status
 │   ├── PLANO_DE_FINALIZACAO.md        # pendências em 5 tiers
 │   ├── SS*_TEXTO_PARA_O_TCC.md        # texto+números prontos por comentário
-│   └── referencias/                   # 16 PDFs + README que liga PDF→citação→¶
+│   └── referencias/                   # 21 PDFs + README que liga PDF→citação→¶
 └── .claude/skills/          # skills de validação (ver seção final)
 ```
 
@@ -217,12 +217,12 @@ que 2023→2024 (0,367 / 0,381), acompanhando a queda do abandono médio (1,36% 
 ## Trabalhando na Monografia
 
 - **Documento canônico e único**: `documentos/monografia-artur-oliveira-engenharia-de-software-2026.docx`
-  (590 parágrafos, 12 tabelas). Renomeado em 31/07/2026; antes era `TCC_Evasao_Escolar.docx`.
+  (637 parágrafos, 13 tabelas). Renomeado em 31/07/2026; antes era `TCC_Evasao_Escolar.docx`.
   É o alvo da varredura do notebook 15. Os `TCC_ANTES_*.docx` são backups históricos, nunca
   alvo de edição.
 - **Sempre criar backup** antes de alterar o `.docx`, seguindo a convenção existente:
   `TCC_ANTES_<ASSUNTO>.docx` em `documentos/`.
-- **Estado atual**: 7 capítulos, 22 figuras, 12 quadros, 29 referências (16 com PDF em
+- **Estado atual**: 7 capítulos, 22 figuras, 12 quadros, 24 referências (21 com PDF em
   `documentos/referencias/`). Numeração de figuras e quadros sem lacunas.
 - **Figuras do Capítulo 6 em linguagem de gestor** (`notebooks/16_figuras_simplificadas.py`):
   as versões técnicas M5, M6 e o beeswarm S1 **não** entram mais no corpo do texto — foram
@@ -231,7 +231,7 @@ que 2023→2024 (0,367 / 0,381), acompanhando a queda do abandono médio (1,36% 
   14, sem equivalente técnico anterior. Ao mexer nessas figuras, editar o notebook 16, nunca
   o 07 ou o 09.
 - **Nunca digitar um número no `.docx` sem que ele saia de um artefato do pipeline.** Depois
-  de qualquer edição numérica, rodar `/validar-numeros` — a varredura confere 121 valores do
+  de qualquer edição numérica, rodar `/validar-numeros` — a varredura confere 178 valores do
   documento contra os parquets/CSVs.
 - **Terminologia (comentário SS7)**: usar "característica", não "informação" nem "feature".
   Exceções legítimas já auditadas: o *abstract* em inglês, o título da referência

@@ -2,8 +2,16 @@
 
 > **Atualizado em 30/07/2026.** Rodada de auditoria fechou os itens 1.3, 2.1, 4.2 e 5.2,
 > mais três achados novos (contagem de testes, ordem dos fatores SHAP, epígrafe do Freire).
-> A bibliografia foi fechada em 24 referências, todas com PDF local. Estado corrente
+> A bibliografia foi fechada em 24 referências, 21 delas com PDF local em
+> `documentos/referencias/` — as três exceções são as entradas BRASIL/INEP, que são bases de
+> dados e não artigos. Estado corrente
 > verificável por `/validar-numeros`, `/validar-escrita` e `/validar-documento`.
+>
+> **Revisão de 18/08/2026:** pipeline reexecutado do bruto ao ranking no ambiente fixado.
+> Artefatos de ETL, features, SHAP, resíduos, SS13 e predição saíram **bit-idênticos**; os
+> CSVs de métricas divergiram no máximo 4,4e-16 (epsilon de máquina, no Random Forest), com
+> Spearman e Precision@K exatamente iguais. 138/138 testes passam e a varredura do notebook
+> 15 confere 178 números do `.docx` sem divergência.
 
 Levantamento de **24 de julho de 2026**, feito a partir da inspeção do
 `TCC_Evasao_Escolar.docx` atual e do repositório. Supera o `PROXIMOS_PASSOS.md`
@@ -12,7 +20,7 @@ Levantamento de **24 de julho de 2026**, feito a partir da inspeção do
 **Estado geral:** o trabalho está essencialmente pronto. Os 13 comentários do
 orientador foram atendidos, o Capítulo 2 (Revisão Bibliográfica) foi escrito com
 referências reais em ABNT, o experimento SS13 e o gráfico de resíduos em número de
-alunos foram inseridos. O documento tem 7 capítulos, 20 figuras, 11 quadros e 24
+alunos foram inseridos. O documento tem 7 capítulos, 22 figuras, 12 quadros e 24
 referências (eram 18 em 24/07; a lista foi revista e fechada em 30/07). O que resta são **correções de consistência, elementos pré-textuais do
 autor e preparação para a defesa** — nenhuma tarefa de pesquisa em aberto.
 
@@ -40,10 +48,13 @@ depende do autor.*
   altura reajustada ao novo aspecto para não distorcer.
 
 - [x] **1.3 Contagem de testes. ✅ REABERTO E FECHADO (30/07).** Passou de 114 para **132**
-  com os testes da ressalva de equidade e da exportação do ranking. As 4 ocorrências no
-  `.docx` (¶330, ¶378, ¶499, ¶512) dizem “132 testes” e conferem com o `pytest`.
+  com os testes da ressalva de equidade e da exportação do ranking, e as 4 ocorrências no
+  `.docx` foram acertadas na época.
   Todo teste novo obriga a atualizar esses quatro pontos — o bloco 10 da varredura não trava
   esse número.
+  **Atualizado em 18/08/2026:** a suíte está em **138 testes** e as quatro ocorrências no
+  `.docx` (¶311, ¶359, ¶539, ¶552 na numeração atual) já dizem “138 testes”, conferindo com
+  o `pytest`. A renumeração dos parágrafos veio das edições posteriores a 30/07.
 
 - [ ] **1.4 Ficha catalográfica. ⏳ DEPENDE DO AUTOR.** Não foi tocada de propósito: o
   bloco ainda traz “Gerenciador de ficha catalográfica: http://biblio2.pucsp.br/ficha/…
@@ -52,8 +63,8 @@ depende do autor.*
 
 - [x] **1.5 Preparado o auto-update de campos. ✅** Inserido
   `<w:updateFields w:val="true"/>` no `settings.xml` → **ao abrir no Word, ele já
-  pergunta se quer atualizar os campos** (Sumário, Lista de Ilustrações com 20 figuras,
-  Lista de Quadros com 11). O autor só precisa **aceitar** (ou Ctrl+A, F9). Esta parte
+  pergunta se quer atualizar os campos** (Sumário, Lista de Ilustrações com 22 figuras,
+  Lista de Quadros com 12). O autor só precisa **aceitar** (ou Ctrl+A, F9). Esta parte
   é intrínseca ao Word e não há como preencher a paginação fora dele.
 
 - [x] **1.6 Larguras dos Quadros 5 e 7 conferidas. ✅** Quadro 5 (4 colunas, cabeçalhos
