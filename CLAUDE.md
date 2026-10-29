@@ -53,10 +53,33 @@ Os nomes abaixo foram verificados contra o código. Não existem `src.data.build
 `src.models.train_model` nem `src.recommend.predict_year`.
 
 ### Ambiente
+A venv fica na **raiz do repositório** (`.venv/` ao lado deste arquivo), não dentro de
+`evasao-escolar/`. O `python` global da máquina não tem nenhum pacote do projeto — sem a
+venv ativa tudo falha com `ModuleNotFoundError`.
 ```bash
-python -m venv .venv
-.venv\Scripts\activate          # Windows (ambiente de referência)
-pip install -r requirements.txt
+python -m venv .venv                         # na raiz do repositório
+.venv\Scripts\activate                       # Windows (ambiente de referência)
+pip install -r evasao-escolar\requirements.txt
+cd evasao-escolar                            # todos os comandos abaixo rodam daqui
+```
+
+A ativação vale só para a janela do terminal: cada terminal novo precisa ativar de novo.
+O sintoma de venv inativa no PowerShell é
+`streamlit : O termo 'streamlit' não é reconhecido como nome de cmdlet…` (ou
+`ModuleNotFoundError` nos scripts Python). Com a venv ativa, o prompt começa com `(.venv)`.
+
+```powershell
+# a partir de evasao-escolar/
+..\.venv\Scripts\Activate.ps1
+
+# se o PowerShell bloquear o script ("execução de scripts foi desabilitada"),
+# liberar só para esta janela e ativar de novo:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+..\.venv\Scripts\Activate.ps1
+
+# alternativa sem ativar: chamar os executáveis da venv direto
+..\.venv\Scripts\python.exe -m src.features.build_features
+..\.venv\Scripts\streamlit.exe run app/dashboard.py
 ```
 
 ### Testes
@@ -102,11 +125,20 @@ que abortou exatamente aí com `FileNotFoundError: Modelo não encontrado`.
 Ordem correta, do bruto ao ranking:
 
 ```bash
-# 1. ETL — os 7 entry-points acima, em qualquer ordem entre si
-# 2. painel escola×ano
-python notebooks/01_exploracao_inicial.py
-# 3. características
-python -m src.features.build_features
+# 0. dados brutos — os 22 arquivos do INEP em data/raw/ (ver data/raw/README.md)
+# 1. ETL — TODOS os 7, em qualquer ordem entre si (→ data/interim/*.parquet)
+python -m src.data.build_taxas_rendimento    # → taxas_rendimento_pe_estadual_em  (alvo)
+python -m src.data.build_inse                # → inse_pe_estadual
+python -m src.data.build_ird                 # → ird_pe_estadual
+python -m src.data.build_tdi                 # → tdi_pe_estadual
+python -m src.data.build_afd                 # → afd_pe_estadual
+python -m src.data.build_esforco_docente     # → ied_pe_estadual  (só notebooks 04 e 11)
+python -m src.data.build_complexidade_gestao # → icg_pe_estadual  (só notebooks 04 e 11)
+# 2. painel escola×ano — SEMPRE reexecutar quando o Censo bruto mudar
+python notebooks/01_exploracao_inicial.py    # → painel_escola_ano_pe_estadual_em
+# 3. características — exige os 6 parquets acima (painel, taxas, inse, ird, tdi, afd)
+python -m src.features.build_features        # → data/processed/features.parquet
+pytest tests/test_rastreabilidade_amostra.py # conferência: 1.586 linhas, 801 escolas
 # 4. descritivas (independentes entre si)
 python notebooks/02_analises_descritivas.py
 python notebooks/03_analises_taxas_rendimento.py
@@ -129,12 +161,29 @@ python notebooks/16_figuras_simplificadas.py
 python -m src.models.predict 2024
 ```
 
+Duas armadilhas vistas numa reconstrução em 28/10/2026:
+
+- **ETL pulado.** O `build_features` só falha quando chega ao parquet ausente
+  (`FileNotFoundError: Parquet não encontrado: …\data\interim\afd_pe_estadual.parquet`).
+  Antes de rodar o passo 3, conferir que `data/interim/` tem os 6 parquets de entrada.
+- **Painel velho.** O `painel_escola_ano_pe_estadual_em.parquet` em `data/interim/` pode
+  ter sobrado de uma execução anterior. O `build_features` o aceita sem reclamar. Por isso,
+  depois de baixar dados novos, rodar o passo 2 é obrigatório.
+
+Depois do passo 3 o dataset deve ter 1.586 linhas (797 de 2022 e 789 de 2023), 801
+escolas, 185 municípios e 39 características, sem valores ausentes. Se não tiver, o
+problema está no dado bruto ou no ETL, não no modelo.
+
 `15_varredura_numeros.py` roda por último, depois de tudo — é validação, não pipeline.
+Ele tem caminhos fixos de outra máquina (`C:\Users\Suporte\Documents\monografia\…`) e só
+roda nesta depois de ajustar `RAIZ` e `DOC` no topo do arquivo.
 
 ### Painel
 ```bash
-streamlit run app/dashboard.py
+streamlit run app/dashboard.py              # com a venv ativa (ver Ambiente)
 ```
+Exige `models/xgboost_v1.joblib` (notebook 08) e `data/processed/features.parquet`.
+Sem a venv ativa, o PowerShell não encontra o `streamlit`.
 
 ---
 
