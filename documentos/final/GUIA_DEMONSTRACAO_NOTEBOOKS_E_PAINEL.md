@@ -34,14 +34,27 @@ Seis blocos em cerca de 15 minutos, do código para o gestor. Os tempos são uma
 | --- | --- | --- | --- |
 | 0–2 | Estrutura | Mostrar `src/` (data → features → models → recommend) e `notebooks/` | "O fluxo é de mão única e cada etapa troca dados por parquet." |
 | 2–4 | Testes | `pytest` (cerca de 25 s, 138 testes) | "O casamento t→t+1, o veto a município repetido entre treino e teste e a aditividade do SHAP são travados por teste." |
-| 4–7 | Notebook ao vivo | `python notebooks/01_exploracao_inicial.py` ou o 13 (ver a próxima seção) | "Este script monta o painel escola × ano direto do microdado do INEP." |
+| 4–7 | Notebooks ao vivo | *Run All* em `notebooks/apresentacao/01_…` e `02_…` (ver a próxima seção) | "Os números dos slides saem deste código, agora." |
 | 7–9 | Resultados | Abrir `reports/metricas_*.csv` e as figuras G1–G5 | "Estes são os arquivos de onde saem os Quadros 9 e 10." |
 | 9–10 | Predição | `python -m src.models.predict 2024` | "Com os dados de 2024, o sistema ordena as escolas pelo risco de 2025." |
 | 10–15 | Painel | `streamlit run app/dashboard.py`, nas três abas | "Aqui o gestor vê a lista, o porquê e a ressalva." |
 
-## Os notebooks
+## Os notebooks de apresentação (pedido do orientador)
 
-Os notebooks são scripts `.py`, não `.ipynb`: rodam no terminal, imprimem no console e salvam figuras em `reports/figuras/`. Para a banca, abra o arquivo no editor (a docstring do topo lista as perguntas que ele responde), rode-o e mostre a figura que ele gerou.
+Para mostrar notebooks **em execução**, há dois `.ipynb` em `evasao-escolar/notebooks/apresentacao/` (ver o `README.md` da pasta). Eles leem os artefatos do pipeline e chamam as mesmas funções de `src/`, e rodam inteiros em menos de 20 s, sem gravar nada.
+
+| Notebook | O que mostrar ao vivo | Slides |
+|---|---|---|
+| `01_dados_e_caracteristicas` | Concentração (76% em 79 escolas), funil 2.392 → 1.586, os 6 grupos, os 138 testes rodando | 4, 8–10, 12 |
+| `02_resultados_e_predicao` | Os 4 modelos treinados ao vivo reproduzindo o Quadro 10, alcance da lista, laudo da escola de Jatobá, resíduo de −6,12, ranking de 2025 | 14–20 |
+
+Frase-chave: "Os números dos slides saem deste código, agora." Os arquivos estão salvos com as saídas: se a execução falhar, basta rolar o notebook.
+
+Preparação: `pip install -r requirements-apresentacao.txt` (já feito em 30/10) e, para abrir no VS Code, escolher o kernel `.venv`.
+
+## Os scripts de análise (pipeline)
+
+Os scripts do pipeline são `.py`, não `.ipynb`: rodam no terminal, imprimem no console e salvam figuras em `reports/figuras/`. Para a banca, abra o arquivo no editor (a docstring do topo lista as perguntas que ele responde), rode-o e mostre a figura que ele gerou.
 
 Ao vivo, rode só os notebooks que o ensaio cronometrar em menos de 1 minuto. Os de modelagem (06, 07, 08, com GridSearch e 20 repetições de validação) não rodam ao vivo: mostre o código e as saídas já salvas.
 
